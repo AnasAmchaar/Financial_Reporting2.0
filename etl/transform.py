@@ -1,6 +1,5 @@
 """
 TRANSFORM – Clean, normalise, and reshape raw DataFrames
-from the DISLOG Business Review workbook.
 """
 
 import logging
@@ -94,7 +93,6 @@ def transform_budget(df: pd.DataFrame, label: str) -> pd.DataFrame:
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
-    # Normalise whatever columns we got
     col_map = {}
     for c in df.columns:
         low = c.lower()
@@ -129,11 +127,9 @@ def transform_data_bilan(df: pd.DataFrame) -> pd.DataFrame:
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
-    # Identify date columns (timestamps parsed by pandas from the Excel)
     id_cols = []
     date_cols = []
     for c in df.columns:
-        # Check if col name looks like a date (e.g. "2023-01-01 00:00:00")
         try:
             pd.Timestamp(c)
             date_cols.append(c)
@@ -180,12 +176,10 @@ def transform_aging(df: pd.DataFrame, entity_type: str) -> pd.DataFrame:
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
-    # First column is the entity name
     first_col = df.columns[0]
     df = df.rename(columns={first_col: "name"})
     df["entity_type"] = entity_type
 
-    # Fill numeric NaNs with 0 (aging buckets)
     numeric_cols = df.select_dtypes(include="number").columns
     df[numeric_cols] = df[numeric_cols].fillna(0)
 
@@ -201,7 +195,6 @@ def transform_hr_synthesis(df: pd.DataFrame) -> pd.DataFrame:
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
-    # Identify id columns vs date-value columns
     id_cols = []
     date_cols = []
     for c in df.columns:
@@ -227,29 +220,26 @@ def transform_hr_synthesis(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── Dispatcher ───────────────────────────────────────────────────────────────
 
-# Map source_key → transform function
-_TRANSFORM_DISPATCH = {
-    "data_reel": transform_data_reel,
-    "data_budget_topline": lambda df: transform_budget(df, "topline_net"),
-    "data_budget_topline_net": lambda df: transform_budget(df, "topline_net_net"),
-    "data_budget_margin": lambda df: transform_budget(df, "margin_net_net"),
-    "data_budget_pl": lambda df: transform_budget(df, "pl_accounts"),
-    "data_bilan": transform_data_bilan,
-    "mapping": transform_mapping,
-    "mapping_opex": transform_mapping,
-    "clients": lambda df: transform_aging(df, "client"),
-    "suppliers": lambda df: transform_aging(df, "supplier"),
-    "hr_synthesis": transform_hr_synthesis,
+# Map transform_type → transform function
+_TYPE_DISPATCH = {
+    "transactional": lambda df, opts: transform_data_reel(df),
+    "budget":        lambda df, opts: transform_budget(df, **opts),
+    "balance_sheet": lambda df, opts: transform_data_bilan(df),
+    "mapping":       lambda df, opts: transform_mapping(df),
+    "aging":         lambda df, opts: transform_aging(df, **opts),
+    "time_series":   lambda df, opts: transform_hr_synthesis(df),
+    "generic":       lambda df, opts: deduplicate(drop_empty_rows(clean_column_names(df))),
 }
 
 
-def transform(df: pd.DataFrame, source_key: str) -> pd.DataFrame:
-    """Run the appropriate transform for a given source key."""
-    logger.info("Transforming '%s' (%d rows) …", source_key, len(df))
+def transform(df: pd.DataFrame, transform_type: str, transform_opts: dict | None = None) -> pd.DataFrame:
+    """Run the appropriate transform for a given transform_type."""
+    opts = transform_opts or {}
+    logger.info("Transforming (%s, %d rows) …", transform_type, len(df))
 
-    func = _TRANSFORM_DISPATCH.get(source_key)
+    func = _TYPE_DISPATCH.get(transform_type)
     if func:
-        df = func(df)
+        df = func(df, opts)
     else:
         # Fallback: generic cleaning
         df = clean_column_names(df)
@@ -261,7 +251,12 @@ def transform(df: pd.DataFrame, source_key: str) -> pd.DataFrame:
 
 
 def transform_all(
-    frames: dict[str, pd.DataFrame],
+    frames: dict[str, tuple[pd.DataFrame, dict]],
 ) -> dict[str, pd.DataFrame]:
-    """Transform every DataFrame in the dict."""
-    return {key: transform(df, key) for key, df in frames.items()}
+    """Transform every DataFrame in the dict using its config."""
+    result = {}
+    for key, (df, cfg) in frames.items():
+        t_type = cfg.get("transform_type", "generic")
+        t_opts = cfg.get("transform_opts", {})
+        result[key] = transform(df, t_type, t_opts)
+    return result

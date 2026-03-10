@@ -1,32 +1,22 @@
 """
-EXTRACT – Read sheets from the DISLOG Business Review Excel file.
+EXTRACT – Read sheets from any Excel file defined in SOURCES.
 """
 
 import logging
-from pathlib import Path
 
 import pandas as pd
 
-from config.settings import DATA_RAW_DIR, EXCEL_FILENAME, SHEET_CONFIG
+from config.settings import DATA_RAW_DIR, SOURCES
 
 logger = logging.getLogger(__name__)
 
 
-def extract_sheet(source_key: str) -> pd.DataFrame:
+def extract_sheet(filepath, cfg: dict) -> pd.DataFrame:
     """
-    Read a single sheet identified by its key in SHEET_CONFIG.
+    Read a single sheet from *filepath* using the extraction parameters in *cfg*.
     Returns a raw DataFrame exactly as read from the file.
     """
-    cfg = SHEET_CONFIG.get(source_key)
-    if cfg is None:
-        raise KeyError(f"Unknown source key '{source_key}'. "
-                       f"Available: {list(SHEET_CONFIG.keys())}")
-
-    filepath = DATA_RAW_DIR / EXCEL_FILENAME
-    if not filepath.exists():
-        raise FileNotFoundError(f"Expected file not found: {filepath}")
-
-    logger.info("Extracting '%s' from sheet '%s'", source_key, cfg["sheet_name"])
+    logger.info("Extracting sheet '%s' from %s", cfg["sheet_name"], filepath.name)
 
     df = pd.read_excel(
         filepath,
@@ -39,15 +29,21 @@ def extract_sheet(source_key: str) -> pd.DataFrame:
     return df
 
 
-def extract_all() -> dict[str, pd.DataFrame]:
+def extract_all() -> dict[str, tuple[pd.DataFrame, dict]]:
     """
-    Extract every sheet defined in SHEET_CONFIG.
-    Returns {source_key: DataFrame, ...}.
+    Extract every sheet across all files defined in SOURCES.
+    Returns {table_name: (DataFrame, sheet_cfg), ...}.
     """
-    frames: dict[str, pd.DataFrame] = {}
-    for key in SHEET_CONFIG:
-        try:
-            frames[key] = extract_sheet(key)
-        except Exception as exc:
-            logger.warning("Skipping '%s': %s", key, exc)
+    frames: dict[str, tuple[pd.DataFrame, dict]] = {}
+    for filename, tables in SOURCES.items():
+        filepath = DATA_RAW_DIR / filename
+        if not filepath.exists():
+            logger.warning("File not found, skipping: %s", filepath)
+            continue
+        for table_name, cfg in tables.items():
+            try:
+                df = extract_sheet(filepath, cfg)
+                frames[table_name] = (df, cfg)
+            except Exception as exc:
+                logger.warning("Skipping '%s': %s", table_name, exc)
     return frames
