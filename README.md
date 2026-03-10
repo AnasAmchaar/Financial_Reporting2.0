@@ -10,7 +10,7 @@ A Python-based ETL pipeline that extracts financial data from Excel Business Rev
 | 2 | ETL Pipeline (Extract → Transform → Load) | ✅ Done |
 | 3 | Economic Transformation (inflation, PPP, monetary adjustments) | 🔲 Planned |
 | 4 | Interactive Visualization & Dashboard | 🔲 Planned |
-| 5 | AI Integration (optional, advanced features) | 🔲 Planned |
+| 5 | AI Integration (advanced features) | 🔲 Planned |
 
 ## Project Structure
 
