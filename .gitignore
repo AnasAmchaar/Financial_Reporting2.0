@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+venv/
+
+# Database
+db/*.db
+
+# Logs
+logs/*.log
+
+# Data (raw files are large / confidential)
+data/raw/*.xlsx
+data/processed/
+
+# IDE
+.vscode/
+.idea/
+*.swp
