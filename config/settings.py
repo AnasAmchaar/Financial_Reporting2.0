@@ -38,23 +38,24 @@ class Config:
     """
 
     def __init__(self):
-        # ── Paths ───────────────────────────────────────────────────────────────────
+        # ── Project Paths ───────────────────────────────────────────────────────────
         self.project_root = Path(__file__).resolve().parent.parent
         self.data_raw_dir = self.project_root / "data" / "raw"
         self.data_processed_dir = self.project_root / "data" / "processed"
         self.db_dir = self.project_root / "db"
         self.log_dir = self.project_root / "logs"
 
+        # ── Database Settings ──────────────────────────────────────────────────────
         self.db_path = self.db_dir / "pfa.db"
 
-        # ── Logging ─────────────────────────────────────────────────────────────────
+        # ── Logging Settings ───────────────────────────────────────────────────────
         self.log_file = self.log_dir / "etl.log"
         self.log_level = "INFO"
 
-        # ── Transform settings ──────────────────────────────────────────────────────
+        # ── Data Transform Settings ─────────────────────────────────────────────────
         self.drop_full_na_rows = True
 
-        # ── Data sources ────────────────────────────────────────────────────────────
+        # ── Data Sources ────────────────────────────────────────────────────────────
         self.sources = {
             # ── Example source (replace with your own files) ────────────────────────
             "DISLOG_BR_Template 08-2023.xlsx": {
@@ -149,43 +150,50 @@ class Config:
             # },
         }
 
-    def get_data_raw_dir(self):
+    @property
+    def data_raw_dir_path(self):
         """
         Returns the path to the data/raw directory.
         """
         return self.data_raw_dir
 
-    def get_data_processed_dir(self):
+    @property
+    def data_processed_dir_path(self):
         """
         Returns the path to the data/processed directory.
         """
         return self.data_processed_dir
 
-    def get_db_path(self):
+    @property
+    def db_path_path(self):
         """
         Returns the path to the database file.
         """
         return self.db_path
 
-    def get_log_file(self):
+    @property
+    def log_file_path(self):
         """
         Returns the path to the log file.
         """
         return self.log_file
 
-    def get_log_level(self):
+    @property
+    def log_level_str(self):
         """
-        Returns the log level.
+        Returns the log level as a string.
         """
         return self.log_level
 
-    def get_drop_full_na_rows(self):
+    @property
+    def drop_full_na_rows_bool(self):
         """
         Returns whether to drop full NA rows.
         """
         return self.drop_full_na_rows
 
-    def get_sources(self):
+    @property
+    def sources_dict(self):
         """
         Returns the data sources.
         """
