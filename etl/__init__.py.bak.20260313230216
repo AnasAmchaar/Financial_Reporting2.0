@@ -1,17 +1,13 @@
+```python
 # config.py
-class Configuration:
+class Config:
     """
     Configuration class for the application.
-
-    Attributes:
-        api_key (str): The API key for authentication.
-        api_secret (str): The API secret for authentication.
-        base_url (str): The base URL for API requests.
     """
 
-    def __init__(self, api_key: str, api_secret: str, base_url: str):
+    def __init__(self, api_key, api_secret, base_url):
         """
-        Initializes the Configuration instance.
+        Initializes the Config instance.
 
         Args:
             api_key (str): The API key for authentication.
@@ -22,7 +18,7 @@ class Configuration:
         self.api_secret = api_secret
         self.base_url = base_url
 
-    def get_api_headers(self) -> dict:
+    def get_api_headers(self):
         """
         Returns the API headers for authentication.
 
@@ -38,27 +34,24 @@ class Configuration:
 ```python
 # api_client.py
 import requests
+from config import Config
 
 class APIClient:
     """
     API client class for making requests to the API.
-
-    Attributes:
-        config (Configuration): The configuration instance.
-        base_url (str): The base URL for API requests.
     """
 
-    def __init__(self, config: Configuration):
+    def __init__(self, config: Config):
         """
         Initializes the APIClient instance.
 
         Args:
-            config (Configuration): The configuration instance.
+            config (Config): The configuration instance.
         """
         self.config = config
         self.base_url = config.base_url
 
-    def get(self, endpoint: str, params: dict = None) -> requests.Response:
+    def get(self, endpoint: str, params: dict = None):
         """
         Makes a GET request to the API.
 
@@ -70,12 +63,11 @@ class APIClient:
             requests.Response: The response from the API.
         """
         headers = self.config.get_api_headers()
-        url = f'{self.base_url}{endpoint}'
         if params:
-            return requests.get(url, params=params, headers=headers)
-        return requests.get(url, headers=headers)
+            return requests.get(f'{self.base_url}{endpoint}', params=params, headers=headers)
+        return requests.get(f'{self.base_url}{endpoint}', headers=headers)
 
-    def post(self, endpoint: str, data: dict) -> requests.Response:
+    def post(self, endpoint: str, data: dict):
         """
         Makes a POST request to the API.
 
@@ -92,24 +84,20 @@ class APIClient:
 
 ```python
 # main.py
-from config import Configuration
+from config import Config
 from api_client import APIClient
 
 def main():
-    """
-    The main function.
-    """
-    config = Configuration('api_key', 'api_secret', 'https://api.example.com')
+    config = Config('api_key', 'api_secret', 'https://api.example.com')
     api_client = APIClient(config)
 
-    # Make a GET request to the API
     response = api_client.get('/users')
     print(response.json())
 
-    # Make a POST request to the API
     data = {'name': 'John Doe', 'email': 'john@example.com'}
     response = api_client.post('/users', data)
     print(response.json())
 
 if __name__ == '__main__':
     main()
+```
