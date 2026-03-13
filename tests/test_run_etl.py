@@ -20,8 +20,7 @@ tmp_dir.mkdir(exist_ok=True)
 # Set up a temporary settings file
 settings_file = tmp_dir / "settings.py"
 with settings_file.open("w") as f:
-    f.write(
-        """
+    f.write("""
 DATA_RAW_DIR = Path('data/raw')
 LOG_DIR = Path('logs')
 LOG_FILE = 'etl.log'
@@ -30,8 +29,7 @@ SOURCES = {
     'file1.xlsx': {'table1': {}, 'table2': {}},
     'file2.xlsx': {'table3': {}},
 }
-"""
-    )
+""")
 
 # Set up a temporary data directory
 data_dir = tmp_dir / "data"
@@ -49,6 +47,7 @@ log_file = log_dir / "etl.log"
 os.environ["PROJECT_ROOT"] = str(tmp_dir)
 sys.path.insert(0, str(tmp_dir))
 
+
 # Test setup_logging
 def test_setup_logging(tmp_path):
     # Create a temporary log file
@@ -65,12 +64,12 @@ def test_setup_logging(tmp_path):
         lines = f.readlines()
     assert any(line.startswith("INFO") for line in lines)
 
+
 # Test find_table
 def test_find_table():
     # Set up the settings file
     with settings_file.open("w") as f:
-        f.write(
-            """
+        f.write("""
 DATA_RAW_DIR = Path('data/raw')
 LOG_DIR = Path('logs')
 LOG_FILE = 'etl.log'
@@ -79,8 +78,7 @@ SOURCES = {
     'file1.xlsx': {'table1': {}, 'table2': {}},
     'file2.xlsx': {'table3': {}},
 }
-"""
-        )
+""")
 
     # Test finding a table that exists
     result = find_table("table1")
@@ -90,12 +88,12 @@ SOURCES = {
     result = find_table("table4")
     assert result is None
 
+
 # Test total_tables
 def test_total_tables():
     # Set up the settings file
     with settings_file.open("w") as f:
-        f.write(
-            """
+        f.write("""
 DATA_RAW_DIR = Path('data/raw')
 LOG_DIR = Path('logs')
 LOG_FILE = 'etl.log'
@@ -104,11 +102,11 @@ SOURCES = {
     'file1.xlsx': {'table1': {}, 'table2': {}},
     'file2.xlsx': {'table3': {}},
 }
-"""
-        )
+""")
 
     # Test counting the total number of tables
     assert total_tables() == 4
+
 
 # Test run_single
 def test_run_single(tmp_path):
@@ -117,8 +115,7 @@ def test_run_single(tmp_path):
 
     # Set up the settings file
     with settings_file.open("w") as f:
-        f.write(
-            """
+        f.write("""
 DATA_RAW_DIR = Path('data/raw')
 LOG_DIR = Path('logs')
 LOG_FILE = 'etl.log'
@@ -126,8 +123,7 @@ LOG_LEVEL = 'INFO'
 SOURCES = {
     'file1.xlsx': {'table1': {}},
 }
-"""
-        )
+""")
 
     # Set up the data file
     (data_dir / "raw" / "file1.xlsx").touch()
@@ -140,6 +136,7 @@ SOURCES = {
         lines = f.readlines()
     assert any(line.startswith("ETL DONE") for line in lines)
 
+
 # Test run_all
 def test_run_all(tmp_path):
     # Create a temporary log file
@@ -147,8 +144,7 @@ def test_run_all(tmp_path):
 
     # Set up the settings file
     with settings_file.open("w") as f:
-        f.write(
-            """
+        f.write("""
 DATA_RAW_DIR = Path('data/raw')
 LOG_DIR = Path('logs')
 LOG_FILE = 'etl.log'
@@ -157,8 +153,7 @@ SOURCES = {
     'file1.xlsx': {'table1': {}},
     'file2.xlsx': {'table2': {}},
 }
-"""
-        )
+""")
 
     # Set up the data files
     (data_dir / "raw" / "file1.xlsx").touch()
@@ -172,6 +167,7 @@ SOURCES = {
         lines = f.readlines()
     assert any(line.startswith("ETL DONE") for line in lines)
 
+
 # Test running with an unknown table name
 def test_run_single_unknown_table(tmp_path):
     # Create a temporary log file
@@ -179,8 +175,7 @@ def test_run_single_unknown_table(tmp_path):
 
     # Set up the settings file
     with settings_file.open("w") as f:
-        f.write(
-            """
+        f.write("""
 DATA_RAW_DIR = Path('data/raw')
 LOG_DIR = Path('logs')
 LOG_FILE = 'etl.log'
@@ -188,8 +183,7 @@ LOG_LEVEL = 'INFO'
 SOURCES = {
     'file1.xlsx': {'table1': {}},
 }
-"""
-        )
+""")
 
     # Set up the data file
     (data_dir / "raw" / "file1.xlsx").touch()
