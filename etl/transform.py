@@ -13,14 +13,15 @@ logger = logging.getLogger(__name__)
 
 # ── Generic helpers ──────────────────────────────────────────────────────────
 
+
 def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
     """Lowercase, strip whitespace, replace non-word chars with underscores."""
     df.columns = (
         df.columns.astype(str)
-          .str.strip()
-          .str.lower()
-          .str.replace(r"[^\w]+", "_", regex=True)
-          .str.strip("_")
+        .str.strip()
+        .str.lower()
+        .str.replace(r"[^\w]+", "_", regex=True)
+        .str.strip("_")
     )
     return df
 
@@ -47,6 +48,7 @@ def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── Sheet-specific transforms ───────────────────────────────────────────────
+
 
 def transform_data_reel(df: pd.DataFrame) -> pd.DataFrame:
     """Transform actual revenue/sales data (DATA_REEL cols A-G)."""
@@ -75,8 +77,10 @@ def transform_data_reel(df: pd.DataFrame) -> pd.DataFrame:
     # Build a proper date column from month + year
     valid_mask = df["year"].notna() & df["month"].notna()
     df.loc[valid_mask, "date"] = pd.to_datetime(
-        df.loc[valid_mask, "year"].astype(int).astype(str) + "-"
-        + df.loc[valid_mask, "month"].astype(int).astype(str).str.zfill(2) + "-01"
+        df.loc[valid_mask, "year"].astype(int).astype(str)
+        + "-"
+        + df.loc[valid_mask, "month"].astype(int).astype(str).str.zfill(2)
+        + "-01"
     )
 
     # Clean string columns
@@ -223,16 +227,18 @@ def transform_hr_synthesis(df: pd.DataFrame) -> pd.DataFrame:
 # Map transform_type → transform function
 _TYPE_DISPATCH = {
     "transactional": lambda df, opts: transform_data_reel(df),
-    "budget":        lambda df, opts: transform_budget(df, **opts),
+    "budget": lambda df, opts: transform_budget(df, **opts),
     "balance_sheet": lambda df, opts: transform_data_bilan(df),
-    "mapping":       lambda df, opts: transform_mapping(df),
-    "aging":         lambda df, opts: transform_aging(df, **opts),
-    "time_series":   lambda df, opts: transform_hr_synthesis(df),
-    "generic":       lambda df, opts: deduplicate(drop_empty_rows(clean_column_names(df))),
+    "mapping": lambda df, opts: transform_mapping(df),
+    "aging": lambda df, opts: transform_aging(df, **opts),
+    "time_series": lambda df, opts: transform_hr_synthesis(df),
+    "generic": lambda df, opts: deduplicate(drop_empty_rows(clean_column_names(df))),
 }
 
 
-def transform(df: pd.DataFrame, transform_type: str, transform_opts: dict | None = None) -> pd.DataFrame:
+def transform(
+    df: pd.DataFrame, transform_type: str, transform_opts: dict | None = None
+) -> pd.DataFrame:
     """Run the appropriate transform for a given transform_type."""
     opts = transform_opts or {}
     logger.info("Transforming (%s, %d rows) …", transform_type, len(df))

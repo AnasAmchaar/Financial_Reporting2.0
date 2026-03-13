@@ -132,7 +132,6 @@ SOURCES = {
             "transform_type": "time_series",
         },
     },
-
     # ── Add more files here ─────────────────────────────────────────────────
     # "another_report.xlsx": {
     #     "revenue": {

@@ -1,4 +1,5 @@
 """Quick verification of the SQLite database after ETL."""
+
 import sqlite3
 import pandas as pd
 
