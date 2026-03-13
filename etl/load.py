@@ -61,7 +61,9 @@ def load_to_sqlite(
         conn.close()
 
 
-def save_to_parquet(df: pd.DataFrame, name: str, output_dir: os.PathLike = DATA_PROCESSED_DIR) -> None:
+def save_to_parquet(
+    df: pd.DataFrame, name: str, output_dir: os.PathLike = DATA_PROCESSED_DIR
+) -> None:
     """
     Save a DataFrame as a Parquet file in the specified directory.
 

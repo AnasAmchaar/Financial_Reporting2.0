@@ -32,6 +32,7 @@ Available `transform_type` values:
 import os
 from pathlib import Path
 
+
 class Config:
     """
     Central configuration for the ETL pipeline.
@@ -198,6 +199,7 @@ class Config:
         Returns the data sources.
         """
         return self.sources
+
 
 # Create a Config instance
 config = Config()

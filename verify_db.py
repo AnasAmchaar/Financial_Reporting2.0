@@ -8,6 +8,7 @@ It also prints the first 5 rows of specified tables for sampling.
 import sqlite3
 import pandas as pd
 
+
 def establish_database_connection(db_path: str) -> sqlite3.Connection:
     """
     Establish a connection to a SQLite database.
@@ -19,6 +20,7 @@ def establish_database_connection(db_path: str) -> sqlite3.Connection:
         sqlite3.Connection: A connection object to the database.
     """
     return sqlite3.connect(db_path)
+
 
 def retrieve_table_info(cur: sqlite3.Cursor) -> dict:
     """
@@ -38,14 +40,15 @@ def retrieve_table_info(cur: sqlite3.Cursor) -> dict:
         # Get the row count for each table
         cur.execute(f"SELECT COUNT(*) FROM {table_name}")
         count = cur.fetchone()[0]
-        
+
         # Get the column names for each table
         cur.execute(f"PRAGMA table_info({table_name})")
         columns = [row[1] for row in cur.fetchall()]
-        
+
         # Store the table information in a dictionary
         table_info[table_name] = {"row_count": count, "column_names": columns}
     return table_info
+
 
 def print_table_summary(table_info: dict) -> None:
     """
@@ -57,7 +60,10 @@ def print_table_summary(table_info: dict) -> None:
     print("Tables in database:")
     print("-" * 60)
     for table_name, info in table_info.items():
-        print(f"  {table_name:30s} {info['row_count']:>6} rows  cols: {info['column_names']}")
+        print(
+            f"  {table_name:30s} {info['row_count']:>6} rows  cols: {info['column_names']}"
+        )
+
 
 def print_table_samples(cur: sqlite3.Cursor, table_names: list) -> None:
     """
@@ -73,6 +79,7 @@ def print_table_samples(cur: sqlite3.Cursor, table_names: list) -> None:
         df = pd.read_sql(f"SELECT * FROM {table_name} LIMIT 5", cur)
         print(df.to_string())
 
+
 def main() -> None:
     db_path = "db/pfa.db"
     conn = establish_database_connection(db_path)
@@ -82,6 +89,7 @@ def main() -> None:
     table_names = ["data_reel", "mapping", "clients", "data_budget_topline"]
     print_table_samples(cur, table_names)
     conn.close()
+
 
 if __name__ == "__main__":
     main()

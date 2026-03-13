@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from config.settings import DATA_RAW_DIR
 
+
 def create_sample_financial_data(data_raw_directory: Path) -> None:
     """
     Generate sample financial data and save it to an Excel file.
@@ -22,7 +23,7 @@ def create_sample_financial_data(data_raw_directory: Path) -> None:
     """
     np.random.seed(42)
     # Generate a range of dates from 2015-01-01 to 2025-12-01, with one date per month
-    dates = pd.date_range("2015-01-01", periods=120, freq="MS")  
+    dates = pd.date_range("2015-01-01", periods=120, freq="MS")
     # Create a DataFrame with the financial data
     financial_data = pd.DataFrame(
         {
@@ -30,7 +31,9 @@ def create_sample_financial_data(data_raw_directory: Path) -> None:
             "Revenue": np.random.uniform(50_000, 200_000, len(dates)).round(2),
             "Expenses": np.random.uniform(30_000, 150_000, len(dates)).round(2),
             "Net Income": None,  # will be cleaned in transform
-            "Exchange Rate (USD/EUR)": np.random.uniform(0.85, 0.95, len(dates)).round(4),
+            "Exchange Rate (USD/EUR)": np.random.uniform(0.85, 0.95, len(dates)).round(
+                4
+            ),
         }
     )
     # Add some realistic gaps to the data

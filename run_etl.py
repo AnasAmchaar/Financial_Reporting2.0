@@ -104,7 +104,9 @@ def run_single_table(table_name: str) -> None:
     # Extract data from the table
     raw_df = extract_sheet(filepath, cfg)
     # Transform the data
-    clean_df = transform(raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts"))
+    clean_df = transform(
+        raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts")
+    )
     # Load the transformed data to SQLite
     load_to_sqlite(clean_df, table_name=table_name)
 
@@ -120,7 +122,9 @@ def run_all_tables() -> None:
     logger = logging.getLogger("etl")
     total = total_tables()
     logger.info("═" * 60)
-    logger.info("ETL START – all sources (%d tables across %d files)", total, len(SOURCES))
+    logger.info(
+        "ETL START – all sources (%d tables across %d files)", total, len(SOURCES)
+    )
 
     # Extract data from all tables
     raw_frames = extract_all()

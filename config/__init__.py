@@ -4,7 +4,10 @@ import logging
 from typing import Dict
 
 # Set up logging configuration
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class User:
     """
@@ -25,6 +28,7 @@ class User:
         """
         self.user_id = user_id
         self.name = name
+
 
 class UserRepository:
     """
@@ -60,6 +64,7 @@ class UserRepository:
             User: User object with the specified ID, or None if not found.
         """
         return self.users.get(user_id)
+
 
 class UserService:
     """
@@ -105,6 +110,7 @@ class UserService:
         """
         return self.repository.get_user(user_id)
 
+
 def main():
     # Create a new UserRepository
     repository = UserRepository()
@@ -113,16 +119,17 @@ def main():
     service = UserService(repository)
 
     # Create a new user
-    user = service.create_user(1, 'John Doe')
+    user = service.create_user(1, "John Doe")
 
     # Retrieve the user by ID
     retrieved_user = service.get_user(1)
 
     # Print the user's name
     if retrieved_user:
-        logging.info(f'User name: {retrieved_user.name}')
+        logging.info(f"User name: {retrieved_user.name}")
     else:
-        logging.info('User not found')
+        logging.info("User not found")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

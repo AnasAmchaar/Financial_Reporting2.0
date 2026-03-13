@@ -15,6 +15,7 @@ from run_etl import (
     SOURCES,
 )
 
+
 def create_tmp_project_root(tmp_path: Path) -> Path:
     """
     Create a temporary project root directory.
@@ -28,6 +29,7 @@ def create_tmp_project_root(tmp_path: Path) -> Path:
     project_root = tmp_path / "tmp"
     project_root.mkdir(exist_ok=True)
     return project_root
+
 
 def setup_tmp_settings(project_root: Path) -> Path:
     """
@@ -53,6 +55,7 @@ SOURCES = {
 """)
     return settings_file
 
+
 def setup_tmp_data_dir(project_root: Path) -> Path:
     """
     Set up a temporary data directory.
@@ -68,6 +71,7 @@ def setup_tmp_data_dir(project_root: Path) -> Path:
     (data_dir / "raw").mkdir(exist_ok=True)
     return data_dir
 
+
 def setup_tmp_log_dir(project_root: Path) -> Path:
     """
     Set up a temporary log directory.
@@ -82,6 +86,7 @@ def setup_tmp_log_dir(project_root: Path) -> Path:
     log_dir.mkdir(exist_ok=True)
     return log_dir
 
+
 def setup_env(project_root: Path) -> None:
     """
     Set up the environment.
@@ -91,6 +96,7 @@ def setup_env(project_root: Path) -> None:
     """
     os.environ["PROJECT_ROOT"] = str(project_root)
     sys.path.insert(0, str(project_root))
+
 
 def test_setup_logging(tmp_path: Path) -> None:
     """
@@ -105,6 +111,7 @@ def test_setup_logging(tmp_path: Path) -> None:
     log_file = project_root / "logs" / "etl.log"
     assert log_file.exists()
 
+
 def test_find_table() -> None:
     """
     Test the find_table function.
@@ -116,6 +123,7 @@ def test_find_table() -> None:
     result = find_table("table1")
     assert result == (data_dir / "raw" / "file1.xlsx", {"table1": {}})
 
+
 def test_total_tables() -> None:
     """
     Test the total_tables function.
@@ -126,6 +134,7 @@ def test_total_tables() -> None:
     (data_dir / "raw" / "file1.xlsx").touch()
     (data_dir / "raw" / "file2.xlsx").touch()
     assert total_tables() == 4
+
 
 def test_run_single(tmp_path: Path) -> None:
     """
@@ -143,6 +152,7 @@ def test_run_single(tmp_path: Path) -> None:
         lines = f.readlines()
     assert any(line.startswith("ETL DONE") for line in lines)
 
+
 def test_run_all(tmp_path: Path) -> None:
     """
     Test the run_all function.
@@ -159,6 +169,7 @@ def test_run_all(tmp_path: Path) -> None:
     with open(log_file, "r") as f:
         lines = f.readlines()
     assert any(line.startswith("ETL DONE") for line in lines)
+
 
 def test_run_single_unknown_table(tmp_path: Path) -> None:
     """
