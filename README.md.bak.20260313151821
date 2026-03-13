@@ -1,42 +1,29 @@
 # Financial Reporting ETL Pipeline
-=====================================
 
-## Overview
-------------
-
-This is a general-purpose ETL (Extract, Transform, Load) pipeline designed to ingest financial Excel workbooks, transform the data, and load it into a SQLite database. The pipeline is highly customizable and supports various financial data formats.
+A general-purpose ETL pipeline that ingests **any** financial Excel workbook, transforms the data, and loads it into a SQLite database.
 
 ## Project Roadmap
------------------
 
-### Current Phase: ETL Pipeline
-
-### Upcoming Phases:
-
-1. Economic Transformation (inflation, PPP adjustments)
-2. Interactive Dashboard
-3. AI-powered Analysis
+1. **ETL Pipeline** ← *current phase*
+2. Economic Transformation (inflation, PPP adjustments)
+3. Interactive Dashboard
+4. AI-powered Analysis
 
 ## Quick Start
---------------
 
-### Prerequisites
+```bash
+pip install -r requirements.txt
 
-* Install required packages by running `pip install -r requirements.txt`
-
-### Steps
-
-1. **Prepare Data**
-	* Place your Excel file(s) in `data/raw/`
-	* Edit `config/settings.py` to describe the sheets in `SOURCES`
-2. **Run ETL Pipeline**
-	* `python run_etl.py` to process all configured sources
-	* `python run_etl.py data_reel` to process a single table
+# 1. Drop your Excel file(s) into data/raw/
+# 2. Edit config/settings.py → SOURCES to describe the sheets
+# 3. Run:
+python run_etl.py            # process all configured sources
+python run_etl.py data_reel  # process a single table
+```
 
 ## Project Structure
----------------------
 
-```markdown
+```
 PFA/
 ├── config/
 │   └── settings.py          # Paths, logging, SOURCES configuration
@@ -55,15 +42,10 @@ PFA/
 └── requirements.txt
 ```
 
-## Adding a New Data Source
----------------------------
+## How to Add a New Data Source
 
-### Steps
-
-1. **Prepare Data**
-	* Place the Excel file in `data/raw/`
-2. **Configure Settings**
-	* Open `config/settings.py` and add an entry to the `SOURCES` dictionary:
+1. Place the Excel file in `data/raw/`.
+2. Open `config/settings.py` and add an entry to the `SOURCES` dict:
 
 ```python
 SOURCES = {
@@ -78,11 +60,9 @@ SOURCES = {
 }
 ```
 
-3. **Run ETL Pipeline**
-	* `python run_etl.py`
+3. Run `python run_etl.py`.
 
 ## Available Transform Types
------------------------------
 
 | Type            | Use case                                     |
 |-----------------|----------------------------------------------|
@@ -94,8 +74,6 @@ SOURCES = {
 | `time_series`   | ID columns + monthly date columns → melted long format |
 | `generic`       | Clean names, drop empties, deduplicate only  |
 
-### Optional Transform Options
-
 Each type accepts optional `transform_opts` passed as keyword arguments. For example:
 
 ```python
@@ -104,8 +82,7 @@ Each type accepts optional `transform_opts` passed as keyword arguments. For exa
 ```
 
 ## Tech Stack
---------------
 
-* **Python 3.12** – pandas, openpyxl
-* **SQLite** – lightweight embedded database
-* **Parquet** – optional columnar snapshots
+- **Python 3.12** – pandas, openpyxl
+- **SQLite** – lightweight embedded database
+- **Parquet** – optional columnar snapshots
