@@ -3,6 +3,7 @@ TRANSFORM – Clean, normalise, and reshape raw DataFrames
 """
 
 import logging
+
 import pandas as pd
 
 from config.settings import DROP_FULL_NA_ROWS
@@ -14,15 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Lowercase, strip whitespace, replace non-word chars with underscores.
-
-    Args:
-        df (pd.DataFrame): DataFrame to clean column names for.
-
-    Returns:
-        pd.DataFrame: DataFrame with cleaned column names.
-    """
+    """Lowercase, strip whitespace, replace non-word chars with underscores."""
     df.columns = (
         df.columns.astype(str)
         .str.strip()
@@ -34,15 +27,7 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Drop rows where ALL values are NaN.
-
-    Args:
-        df (pd.DataFrame): DataFrame to drop empty rows from.
-
-    Returns:
-        pd.DataFrame: DataFrame with empty rows dropped.
-    """
+    """Drop rows where ALL values are NaN."""
     if DROP_FULL_NA_ROWS:
         before = len(df)
         df = df.dropna(how="all")
@@ -53,15 +38,7 @@ def drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Remove exact duplicate rows.
-
-    Args:
-        df (pd.DataFrame): DataFrame to remove duplicates from.
-
-    Returns:
-        pd.DataFrame: DataFrame with duplicates removed.
-    """
+    """Remove exact duplicate rows."""
     before = len(df)
     df = df.drop_duplicates()
     removed = before - len(df)
@@ -74,15 +51,7 @@ def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def transform_data_reel(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Transform actual revenue/sales data (DATA_REEL cols A-G).
-
-    Args:
-        df (pd.DataFrame): DataFrame to transform.
-
-    Returns:
-        pd.DataFrame: Transformed DataFrame.
-    """
+    """Transform actual revenue/sales data (DATA_REEL cols A-G)."""
     df = clean_column_names(df)
     # Standardise column names
     rename = {
@@ -124,16 +93,7 @@ def transform_data_reel(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def transform_budget(df: pd.DataFrame, label: str) -> pd.DataFrame:
-    """
-    Transform a budget sub-table (Topline, Topline Net Net, Margin).
-
-    Args:
-        df (pd.DataFrame): DataFrame to transform.
-        label (str): Label for the transformed DataFrame.
-
-    Returns:
-        pd.DataFrame: Transformed DataFrame.
-    """
+    """Transform a budget sub-table (Topline, Topline Net Net, Margin)."""
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
@@ -167,15 +127,7 @@ def transform_budget(df: pd.DataFrame, label: str) -> pd.DataFrame:
 
 
 def transform_data_bilan(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Transform balance sheet data – melt monthly columns into long format.
-
-    Args:
-        df (pd.DataFrame): DataFrame to transform.
-
-    Returns:
-        pd.DataFrame: Transformed DataFrame.
-    """
+    """Transform balance sheet data – melt monthly columns into long format."""
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
@@ -203,15 +155,7 @@ def transform_data_bilan(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def transform_mapping(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Transform account mapping table.
-
-    Args:
-        df (pd.DataFrame): DataFrame to transform.
-
-    Returns:
-        pd.DataFrame: Transformed DataFrame.
-    """
+    """Transform account mapping table."""
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
@@ -232,16 +176,7 @@ def transform_mapping(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def transform_aging(df: pd.DataFrame, entity_type: str) -> pd.DataFrame:
-    """
-    Transform client or supplier aging data.
-
-    Args:
-        df (pd.DataFrame): DataFrame to transform.
-        entity_type (str): Type of entity (client or supplier).
-
-    Returns:
-        pd.DataFrame: Transformed DataFrame.
-    """
+    """Transform client or supplier aging data."""
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
@@ -260,15 +195,7 @@ def transform_aging(df: pd.DataFrame, entity_type: str) -> pd.DataFrame:
 
 
 def transform_hr_synthesis(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Transform HR synthesis – melt monthly date columns into long format.
-
-    Args:
-        df (pd.DataFrame): DataFrame to transform.
-
-    Returns:
-        pd.DataFrame: Transformed DataFrame.
-    """
+    """Transform HR synthesis – melt monthly date columns into long format."""
     df = clean_column_names(df)
     df = drop_empty_rows(df)
 
@@ -312,8 +239,30 @@ _TYPE_DISPATCH = {
 def transform(
     df: pd.DataFrame, transform_type: str, transform_opts: dict | None = None
 ) -> pd.DataFrame:
-    """
-    Run the appropriate transform for a given transform_type.
+    """Run the appropriate transform for a given transform_type."""
+    opts = transform_opts or {}
+    logger.info("Transforming (%s, %d rows) …", transform_type, len(df))
 
-    Args:
-        df (pd.DataFrame): DataFrame to transform
+    func = _TYPE_DISPATCH.get(transform_type)
+    if func:
+        df = func(df, opts)
+    else:
+        # Fallback: generic cleaning
+        df = clean_column_names(df)
+        df = drop_empty_rows(df)
+        df = deduplicate(df)
+
+    logger.info("  → Result: %d rows × %d columns", len(df), len(df.columns))
+    return df
+
+
+def transform_all(
+    frames: dict[str, tuple[pd.DataFrame, dict]],
+) -> dict[str, pd.DataFrame]:
+    """Transform every DataFrame in the dict using its config."""
+    result = {}
+    for key, (df, cfg) in frames.items():
+        t_type = cfg.get("transform_type", "generic")
+        t_opts = cfg.get("transform_opts", {})
+        result[key] = transform(df, t_type, t_opts)
+    return result

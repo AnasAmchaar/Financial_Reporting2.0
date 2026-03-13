@@ -32,31 +32,29 @@ Available `transform_type` values:
 import os
 from pathlib import Path
 
-
 class Config:
     """
     Central configuration for the ETL pipeline.
     """
 
     def __init__(self):
-        # ── Project Paths ───────────────────────────────────────────────────────────
+        # ── Paths ───────────────────────────────────────────────────────────────────
         self.project_root = Path(__file__).resolve().parent.parent
         self.data_raw_dir = self.project_root / "data" / "raw"
         self.data_processed_dir = self.project_root / "data" / "processed"
         self.db_dir = self.project_root / "db"
         self.log_dir = self.project_root / "logs"
 
-        # ── Database Settings ──────────────────────────────────────────────────────
         self.db_path = self.db_dir / "pfa.db"
 
-        # ── Logging Settings ───────────────────────────────────────────────────────
+        # ── Logging ─────────────────────────────────────────────────────────────────
         self.log_file = self.log_dir / "etl.log"
         self.log_level = "INFO"
 
-        # ── Data Transform Settings ─────────────────────────────────────────────────
+        # ── Transform settings ──────────────────────────────────────────────────────
         self.drop_full_na_rows = True
 
-        # ── Data Sources ────────────────────────────────────────────────────────────
+        # ── Data sources ────────────────────────────────────────────────────────────
         self.sources = {
             # ── Example source (replace with your own files) ────────────────────────
             "DISLOG_BR_Template 08-2023.xlsx": {
@@ -151,55 +149,47 @@ class Config:
             # },
         }
 
-    @property
-    def data_raw_dir_path(self):
+    def get_data_raw_dir(self):
         """
         Returns the path to the data/raw directory.
         """
         return self.data_raw_dir
 
-    @property
-    def data_processed_dir_path(self):
+    def get_data_processed_dir(self):
         """
         Returns the path to the data/processed directory.
         """
         return self.data_processed_dir
 
-    @property
-    def db_path_path(self):
+    def get_db_path(self):
         """
         Returns the path to the database file.
         """
         return self.db_path
 
-    @property
-    def log_file_path(self):
+    def get_log_file(self):
         """
         Returns the path to the log file.
         """
         return self.log_file
 
-    @property
-    def log_level_str(self):
+    def get_log_level(self):
         """
-        Returns the log level as a string.
+        Returns the log level.
         """
         return self.log_level
 
-    @property
-    def drop_full_na_rows_bool(self):
+    def get_drop_full_na_rows(self):
         """
         Returns whether to drop full NA rows.
         """
         return self.drop_full_na_rows
 
-    @property
-    def sources_dict(self):
+    def get_sources(self):
         """
         Returns the data sources.
         """
         return self.sources
-
 
 # Create a Config instance
 config = Config()

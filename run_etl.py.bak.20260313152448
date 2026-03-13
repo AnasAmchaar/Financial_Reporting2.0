@@ -82,7 +82,7 @@ def total_tables() -> int:
     return sum(len(tables) for tables in SOURCES.values())
 
 
-def run_single_table(table_name: str) -> None:
+def run_single(table_name: str) -> None:
     """
     Run the ETL pipeline for one table.
 
@@ -104,9 +104,7 @@ def run_single_table(table_name: str) -> None:
     # Extract data from the table
     raw_df = extract_sheet(filepath, cfg)
     # Transform the data
-    clean_df = transform(
-        raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts")
-    )
+    clean_df = transform(raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts"))
     # Load the transformed data to SQLite
     load_to_sqlite(clean_df, table_name=table_name)
 
@@ -114,7 +112,7 @@ def run_single_table(table_name: str) -> None:
     logger.info("═" * 60)
 
 
-def run_all_tables() -> None:
+def run_all() -> None:
     """
     Run the ETL pipeline for every configured source.
     """
@@ -122,9 +120,7 @@ def run_all_tables() -> None:
     logger = logging.getLogger("etl")
     total = total_tables()
     logger.info("═" * 60)
-    logger.info(
-        "ETL START – all sources (%d tables across %d files)", total, len(SOURCES)
-    )
+    logger.info("ETL START – all sources (%d tables across %d files)", total, len(SOURCES))
 
     # Extract data from all tables
     raw_frames = extract_all()
@@ -141,17 +137,10 @@ def run_all_tables() -> None:
     logger.info("═" * 60)
 
 
-def main() -> None:
-    """
-    Main entry point for the ETL pipeline.
-    """
+if __name__ == "__main__":
     setup_logging()
 
     if len(sys.argv) > 1:
-        run_single_table(sys.argv[1])
+        run_single(sys.argv[1])
     else:
-        run_all_tables()
-
-
-if __name__ == "__main__":
-    main()
+        run_all()

@@ -1,5 +1,5 @@
 # config.py
-class ApplicationConfiguration:
+class Configuration:
     """
     Configuration class for the application.
 
@@ -11,46 +11,16 @@ class ApplicationConfiguration:
 
     def __init__(self, api_key: str, api_secret: str, base_url: str):
         """
-        Initializes the ApplicationConfiguration instance.
+        Initializes the Configuration instance.
 
         Args:
             api_key (str): The API key for authentication.
             api_secret (str): The API secret for authentication.
             base_url (str): The base URL for API requests.
         """
-        self._api_key = api_key
-        self._api_secret = api_secret
-        self._base_url = base_url
-
-    @property
-    def api_key(self) -> str:
-        """
-        Gets the API key for authentication.
-
-        Returns:
-            str: The API key.
-        """
-        return self._api_key
-
-    @property
-    def api_secret(self) -> str:
-        """
-        Gets the API secret for authentication.
-
-        Returns:
-            str: The API secret.
-        """
-        return self._api_secret
-
-    @property
-    def base_url(self) -> str:
-        """
-        Gets the base URL for API requests.
-
-        Returns:
-            str: The base URL.
-        """
-        return self._base_url
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.base_url = base_url
 
     def get_api_headers(self) -> dict:
         """
@@ -74,29 +44,19 @@ class APIClient:
     API client class for making requests to the API.
 
     Attributes:
-        config (ApplicationConfiguration): The configuration instance.
+        config (Configuration): The configuration instance.
+        base_url (str): The base URL for API requests.
     """
 
-    def __init__(self, config: ApplicationConfiguration):
+    def __init__(self, config: Configuration):
         """
         Initializes the APIClient instance.
 
         Args:
-            config (ApplicationConfiguration): The configuration instance.
+            config (Configuration): The configuration instance.
         """
         self.config = config
-
-    def _build_url(self, endpoint: str) -> str:
-        """
-        Builds the API URL by joining the base URL and endpoint.
-
-        Args:
-            endpoint (str): The API endpoint.
-
-        Returns:
-            str: The API URL.
-        """
-        return f'{self.config.base_url}{endpoint}'
+        self.base_url = config.base_url
 
     def get(self, endpoint: str, params: dict = None) -> requests.Response:
         """
@@ -110,7 +70,7 @@ class APIClient:
             requests.Response: The response from the API.
         """
         headers = self.config.get_api_headers()
-        url = self._build_url(endpoint)
+        url = f'{self.base_url}{endpoint}'
         if params:
             return requests.get(url, params=params, headers=headers)
         return requests.get(url, headers=headers)
@@ -127,19 +87,19 @@ class APIClient:
             requests.Response: The response from the API.
         """
         headers = self.config.get_api_headers()
-        return requests.post(self._build_url(endpoint), json=data, headers=headers)
+        return requests.post(f'{self.base_url}{endpoint}', json=data, headers=headers)
 ```
 
 ```python
 # main.py
-from config import ApplicationConfiguration
+from config import Configuration
 from api_client import APIClient
 
 def main():
     """
     The main function.
     """
-    config = ApplicationConfiguration('api_key', 'api_secret', 'https://api.example.com')
+    config = Configuration('api_key', 'api_secret', 'https://api.example.com')
     api_client = APIClient(config)
 
     # Make a GET request to the API

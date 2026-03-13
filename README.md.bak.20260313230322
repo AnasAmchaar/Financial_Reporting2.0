@@ -97,15 +97,15 @@ The ETL pipeline supports various financial data formats through the following t
 
 ### Transform Types
 
-| Type            | Description                                                  |
-|-----------------|--------------------------------------------------------------|
-| `transactional` | Row-per-transaction data (partner, month, amount)             |
-| `budget`        | Budget/forecast tables with a label column                   |
-| `balance_sheet` | ID columns + monthly date columns → melted long format        |
-| `mapping`       | Account code → hierarchy levels                              |
-| `aging`         | Entity name + aging buckets (clients/suppliers)              |
-| `time_series`   | ID columns + monthly date columns → melted long format        |
-| `generic`       | Clean names, drop empties, deduplicate only                  |
+| Type            | Use case                                     |
+|-----------------|----------------------------------------------|
+| `transactional` | Row-per-transaction data (partner, month, amount) |
+| `budget`        | Budget/forecast tables with a label column   |
+| `balance_sheet` | ID columns + monthly date columns → melted long format |
+| `mapping`       | Account code → hierarchy levels              |
+| `aging`         | Entity name + aging buckets (clients/suppliers) |
+| `time_series`   | ID columns + monthly date columns → melted long format |
+| `generic`       | Clean names, drop empties, deduplicate only  |
 
 ### Optional Transform Options
 
@@ -130,18 +130,3 @@ The ETL pipeline is built using the following technologies:
 * **openpyxl**: A library for reading and writing Excel files.
 * **SQLite**: A lightweight embedded database for storing and querying data.
 * **Parquet**: An optional columnar storage format for efficient data snapshots.
-
-## Contributing
---------------
-
-Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to this project.
-
-## License
----------
-
-This project is licensed under the [MIT License](LICENSE.md).
-
-## Acknowledgments
------------------
-
-This project was inspired by various open-source ETL pipelines and financial data analysis libraries.

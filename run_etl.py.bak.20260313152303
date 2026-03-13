@@ -1,3 +1,4 @@
+```python
 """
 run_etl.py – Main entry point for the ETL pipeline.
 
@@ -22,18 +23,9 @@ from config.settings import (
     LOG_LEVEL,
     SOURCES,
 )
-from etl.extract import (
-    extract_all,
-    extract_sheet,
-)
-from etl.transform import (
-    transform,
-    transform_all,
-)
-from etl.load import (
-    load_all,
-    load_to_sqlite,
-)
+from etl.extract import extract_all, extract_sheet
+from etl.transform import transform, transform_all
+from etl.load import load_all, load_to_sqlite
 
 
 def setup_logging() -> None:
@@ -42,7 +34,6 @@ def setup_logging() -> None:
 
     Creates the log directory if it doesn't exist.
     """
-    # Create log directory if it doesn't exist
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         level=getattr(logging, LOG_LEVEL, logging.INFO),
@@ -64,7 +55,6 @@ def find_table(table_name: str) -> tuple[Path, dict] | None:
     Returns:
         tuple[Path, dict] | None: (filepath, cfg) if found, None otherwise.
     """
-    # Iterate over sources and find the table
     for filename, tables in SOURCES.items():
         if table_name in tables:
             return DATA_RAW_DIR / filename, tables[table_name]
@@ -78,80 +68,60 @@ def total_tables() -> int:
     Returns:
         int: Total number of tables.
     """
-    # Sum up the number of tables in each source
     return sum(len(tables) for tables in SOURCES.values())
 
 
-def run_single_table(table_name: str) -> None:
+def run_single(table_name: str) -> None:
     """
     Run the ETL pipeline for one table.
 
     Args:
         table_name (str): Name of the table to process.
     """
-    # Initialize logger
     logger = logging.getLogger("etl")
     logger.info("═" * 60)
     logger.info("ETL START – table: %s", table_name)
 
-    # Find the table configuration
     result = find_table(table_name)
     if result is None:
         logger.error("Unknown table '%s'. Check SOURCES in settings.py.", table_name)
         return
     filepath, cfg = result
 
-    # Extract data from the table
     raw_df = extract_sheet(filepath, cfg)
-    # Transform the data
-    clean_df = transform(
-        raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts")
-    )
-    # Load the transformed data to SQLite
+    clean_df = transform(raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts"))
     load_to_sqlite(clean_df, table_name=table_name)
 
     logger.info("ETL DONE  – table: %s", table_name)
     logger.info("═" * 60)
 
 
-def run_all_tables() -> None:
+def run_all() -> None:
     """
     Run the ETL pipeline for every configured source.
     """
-    # Initialize logger
     logger = logging.getLogger("etl")
     total = total_tables()
     logger.info("═" * 60)
-    logger.info(
-        "ETL START – all sources (%d tables across %d files)", total, len(SOURCES)
-    )
+    logger.info("ETL START – all sources (%d tables across %d files)", total, len(SOURCES))
 
-    # Extract data from all tables
     raw_frames = extract_all()
     if not raw_frames:
         logger.warning("No data extracted. Check the Excel files in data/raw/.")
         return
 
-    # Transform the extracted data
     clean_frames = transform_all(raw_frames)
-    # Load the transformed data to SQLite
     load_all(clean_frames, to_sqlite=True)
 
     logger.info("ETL DONE  – processed %d table(s)", len(clean_frames))
     logger.info("═" * 60)
 
 
-def main() -> None:
-    """
-    Main entry point for the ETL pipeline.
-    """
+if __name__ == "__main__":
     setup_logging()
 
     if len(sys.argv) > 1:
-        run_single_table(sys.argv[1])
+        run_single(sys.argv[1])
     else:
-        run_all_tables()
-
-
-if __name__ == "__main__":
-    main()
+        run_all()
+```
