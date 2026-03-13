@@ -237,7 +237,7 @@ def transform_aging(df: pd.DataFrame, entity_type: str) -> pd.DataFrame:
 
     Args:
         df (pd.DataFrame): DataFrame to transform.
-        entity_type (str): Type of entity (e.g. "client", "supplier").
+        entity_type (str): Type of entity (client or supplier).
 
     Returns:
         pd.DataFrame: Transformed DataFrame.
@@ -316,4 +316,4 @@ def transform(
     Run the appropriate transform for a given transform_type.
 
     Args:
-        df (pd
+        df (pd.DataFrame): DataFrame to transform
