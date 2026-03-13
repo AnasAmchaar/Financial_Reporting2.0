@@ -91,12 +91,6 @@ SOURCES = {
 ## Available Transform Types
 -----------------------------
 
-### Overview
-
-The ETL pipeline supports various financial data formats through the following transform types:
-
-### Transform Types
-
 | Type            | Use case                                     |
 |-----------------|----------------------------------------------|
 | `transactional` | Row-per-transaction data (partner, month, amount) |
@@ -118,12 +112,6 @@ Each type accepts optional `transform_opts` passed as keyword arguments. For exa
 
 ## Tech Stack
 --------------
-
-### Overview
-
-The ETL pipeline is built using the following technologies:
-
-### Technologies
 
 * **Python 3.12**: The primary programming language used for the ETL pipeline.
 * **pandas**: A powerful data analysis library for data manipulation and analysis.
