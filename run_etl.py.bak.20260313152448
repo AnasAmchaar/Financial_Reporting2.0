@@ -82,7 +82,7 @@ def total_tables() -> int:
     return sum(len(tables) for tables in SOURCES.values())
 
 
-def run_single_table(table_name: str) -> None:
+def run_single(table_name: str) -> None:
     """
     Run the ETL pipeline for one table.
 
@@ -112,7 +112,7 @@ def run_single_table(table_name: str) -> None:
     logger.info("═" * 60)
 
 
-def run_all_tables() -> None:
+def run_all() -> None:
     """
     Run the ETL pipeline for every configured source.
     """
@@ -137,17 +137,10 @@ def run_all_tables() -> None:
     logger.info("═" * 60)
 
 
-def main() -> None:
-    """
-    Main entry point for the ETL pipeline.
-    """
+if __name__ == "__main__":
     setup_logging()
 
     if len(sys.argv) > 1:
-        run_single_table(sys.argv[1])
+        run_single(sys.argv[1])
     else:
-        run_all_tables()
-
-
-if __name__ == "__main__":
-    main()
+        run_all()
