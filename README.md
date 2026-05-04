@@ -4,9 +4,9 @@ A general-purpose ETL pipeline that ingests **any** financial Excel workbook, tr
 
 ## Project Roadmap
 
-1. **ETL Pipeline** ← *current phase*
-2. Economic Transformation (inflation, PPP adjustments)
-3. Interactive Dashboard
+1. **ETL Pipeline**
+2. **Economic adjustment layer** (inflation / time-value)
+3. **EcoEye2** (web UI: ingest, edit, adjustments, charts) ← *see below*
 4. AI-powered Analysis
 
 ## Quick Start
@@ -26,18 +26,31 @@ python run_etl.py data_reel  # process a single table
 ```
 PFA/
 ├── config/
-│   └── settings.py          # Paths, logging, SOURCES configuration
+│   ├── settings.py           # Paths, logging, SOURCES configuration
+│   ├── econ_settings.py      # Macro sources, BASE_PERIOD, ADJUSTMENTS
+│   └── bam_policy_rates.csv  # Hand-maintained BAM key-rate steps (optional)
 ├── data/
 │   ├── raw/                  # Drop Excel files here (.gitignored)
-│   └── processed/            # Optional Parquet output
+│   ├── processed/            # Optional Parquet output
+│   └── econ/cache/           # Parquet cache for macro fetches (.gitignored)
 ├── db/
 │   └── pfa.db                # SQLite database (.gitignored)
 ├── etl/
 │   ├── extract.py            # Read Excel sheets → DataFrames
 │   ├── transform.py          # Clean, normalise, reshape data
 │   └── load.py               # Write to SQLite / Parquet
+├── econ/
+│   ├── fetcher.py            # Pull HCP / World Bank / FRED / BAM → econ_indicators
+│   ├── apply.py              # Build parallel `*_real` tables in SQLite
+│   ├── sources/              # Per-provider clients + HCP article scraper
+│   └── adjusters/            # CPI/PPI deflator + time-value (PV) helpers
+├── ecoeye2/
+│   ├── server/               # FastAPI (EcoEye2 API + static SPA build)
+│   └── web/                  # React + Vite frontend
 ├── logs/                     # ETL run logs (.gitignored)
-├── run_etl.py                # Main entry point
+├── run_etl.py                # Main ETL entry point
+├── run_econ.py               # Macro fetch + apply real-value layer
+├── run_ecoeye2.py            # Dev server: uvicorn EcoEye2 API
 ├── verify_db.py              # Quick DB inspection helper
 └── requirements.txt
 ```
@@ -62,6 +75,94 @@ SOURCES = {
 
 3. Run `python run_etl.py`.
 
+## Economic Adjustment Layer
+
+After ETL has populated `db/pfa.db`, you can fetch macro indicators and create **parallel** `*_real` tables (raw tables are unchanged).
+
+### Sources (automated)
+
+| Priority | Provider | Series (examples) |
+|----------|----------|-------------------|
+| 1 | **HCP** (hcp.ma) | Latest IPC / IPPI article pages → Excel when linked |
+| 2 | **FRED** | `MARCPIALLMINMEI` (monthly CPI), `CPALTT01MAM657N` (YoY) — requires `FRED_API_KEY` |
+| 3 | **World Bank** | `FP.CPI.TOTL`, `FP.CPI.TOTL.ZG`; PPI chain falls back to `NY.GDP.DEFL.ZS` (annual GDP deflator) when IPPI is unavailable |
+| 4 | **BAM** | Policy rate from [`config/bam_policy_rates.csv`](config/bam_policy_rates.csv) (hand-maintained schedule, expanded to monthly) |
+
+Cache files are written under `data/econ/cache/`. Long-format history is stored in SQLite table **`econ_indicators`**.
+
+### Configuration
+
+- [`config/econ_settings.py`](config/econ_settings.py): `BASE_PERIOD` (deflation anchor, `YYYY-MM`), `INDICATOR_CHAIN` (per-indicator source order), `ADJUSTMENTS` (which table uses CPI vs PPI, dates, optional `year_default` for month-only budgets), `DISCOUNT` (annual rate + PV reference date).
+- Copy [`.env.example`](.env.example) to `.env` and set `FRED_API_KEY` for monthly Morocco CPI when HCP Excel is not linked on article pages.
+
+### Commands
+
+```bash
+pip install -r requirements.txt
+
+python run_econ.py fetch          # refresh econ_indicators (+ Parquet cache)
+python run_econ.py fetch --source worldbank   # only that provider's chain steps
+python run_econ.py apply          # build data_reel_real, data_bilan_real, ...
+python run_econ.py all            # fetch then apply
+```
+
+`apply` adds nominal deflators (`cpi_deflator` / `ppi_deflator`), `amount_real_<BASE>`, and `amount_pv_<refdate>` (time-value to `DISCOUNT["ref_date"]`) where a single `amount` column exists. Wide balance-sheet / HR sheets are auto-melted when columns look like `2023_01_01_00_00_00`. Client/supplier aging uses `as_of_date` from the config.
+
+## EcoEye2 (web application)
+
+**EcoEye2** is a FastAPI + React (TypeScript) UI for the full flow: upload workbooks, run ETL, edit raw SQLite rows, fetch/apply economic adjustments, and visualize **nominal vs real** (before/after) series.
+
+### Run (development)
+
+Terminal 1 – API (loads `.env` from project root for `FRED_API_KEY`, `ECOEYE2_*`):
+
+```bash
+pip install -r requirements.txt
+python run_ecoeye2.py
+# OpenAPI: http://127.0.0.1:8000/docs
+```
+
+Terminal 2 – SPA (Vite proxies `/api` to port 8000):
+
+```bash
+cd ecoeye2/web
+npm install
+npm run dev
+# App: http://127.0.0.1:5173
+```
+
+### Run (single server, production build)
+
+```bash
+cd ecoeye2/web && npm run build
+uvicorn ecoeye2.server.main:app --host 0.0.0.0 --port 8000
+# UI + API: http://127.0.0.1:8000/
+```
+
+### Environment
+
+| Variable | Purpose |
+|----------|---------|
+| `ECOEYE2_DB_PATH` | SQLite file (default `db/pfa.db`) |
+| `ECOEYE2_RAW_DIR` | Upload directory (default `data/raw`) |
+| `ECOEYE2_API_KEY` | If set, API requires header `X-Api-Key` on mutating routes |
+| `VITE_ECOEYE2_API_KEY` | (frontend `.env`) same value for browser requests |
+| `FRED_API_KEY` | Monthly Morocco CPI via FRED when HCP Excel is unavailable |
+
+### Docker
+
+```bash
+docker compose build
+docker compose up
+```
+
+Mount a volume with your `data/raw` Excel files and `pfa.db` (or let the app create an empty DB and run ETL from the UI after copying templates).
+
+### Layout
+
+- [`ecoeye2/server/`](ecoeye2/server/) – FastAPI app, REST under `/api/v1/`
+- [`ecoeye2/web/`](ecoeye2/web/) – Vite React SPA; `npm run build` outputs to [`ecoeye2/server/static/`](ecoeye2/server/static/)
+
 ## Available Transform Types
 
 | Type            | Use case                                     |
@@ -83,6 +184,7 @@ Each type accepts optional `transform_opts` passed as keyword arguments. For exa
 
 ## Tech Stack
 
-- **Python 3.12** – pandas, openpyxl
-- **SQLite** – lightweight embedded database
-- **Parquet** – optional columnar snapshots
+- **Python 3.12** – pandas, openpyxl, requests, beautifulsoup4, pyarrow, FastAPI, uvicorn
+- **React 19 + Vite 8** – EcoEye2 SPA (TanStack Table, Recharts, Tailwind)
+- **SQLite** – lightweight embedded database (`econ_indicators`, `*_real`)
+- **Parquet** – optional columnar snapshots and econ cache

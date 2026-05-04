@@ -15,10 +15,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from config.settings import DATA_RAW_DIR, LOG_DIR, LOG_FILE, LOG_LEVEL, SOURCES
-from etl.extract import extract_all, extract_sheet
-from etl.transform import transform, transform_all
-from etl.load import load_all, load_to_sqlite
+from config.settings import LOG_DIR, LOG_FILE, LOG_LEVEL
+from etl.pipeline import run_etl_all, run_etl_single
 
 
 def setup_logging() -> None:
@@ -33,61 +31,19 @@ def setup_logging() -> None:
     )
 
 
-def _find_table(table_name: str) -> tuple[Path, dict] | None:
-    """Locate a table_name in SOURCES, returning (filepath, cfg) or None."""
-    for filename, tables in SOURCES.items():
-        if table_name in tables:
-            return DATA_RAW_DIR / filename, tables[table_name]
-    return None
-
-
-def _total_tables() -> int:
-    return sum(len(tables) for tables in SOURCES.values())
-
-
-def run_single(table_name: str) -> None:
-    """Run the ETL pipeline for one table."""
-    logger = logging.getLogger("etl")
-    logger.info("═" * 60)
-    logger.info("ETL START – table: %s", table_name)
-
-    result = _find_table(table_name)
-    if result is None:
-        logger.error("Unknown table '%s'. Check SOURCES in settings.py.", table_name)
-        return
-    filepath, cfg = result
-
-    raw_df = extract_sheet(filepath, cfg)
-    clean_df = transform(raw_df, cfg.get("transform_type", "generic"), cfg.get("transform_opts"))
-    load_to_sqlite(clean_df, table_name=table_name)
-
-    logger.info("ETL DONE  – table: %s", table_name)
-    logger.info("═" * 60)
-
-
-def run_all() -> None:
-    """Run the ETL pipeline for every configured source."""
-    logger = logging.getLogger("etl")
-    total = _total_tables()
-    logger.info("═" * 60)
-    logger.info("ETL START – all sources (%d tables across %d files)", total, len(SOURCES))
-
-    raw_frames = extract_all()
-    if not raw_frames:
-        logger.warning("No data extracted. Check the Excel files in data/raw/.")
-        return
-
-    clean_frames = transform_all(raw_frames)
-    load_all(clean_frames, to_sqlite=True)
-
-    logger.info("ETL DONE  – processed %d table(s)", len(clean_frames))
-    logger.info("═" * 60)
-
-
 if __name__ == "__main__":
     setup_logging()
+    logger = logging.getLogger("etl")
 
     if len(sys.argv) > 1:
-        run_single(sys.argv[1])
+        r = run_etl_single(sys.argv[1])
+        if not r.ok:
+            logger.error("%s", r.message or r.tables[0].error)
+            sys.exit(1)
+        logger.info("ETL OK: %s (%d rows)", r.tables[0].table, r.tables[0].rows)
     else:
-        run_all()
+        r = run_etl_all()
+        if not r.ok:
+            logger.error("%s", r.message)
+            sys.exit(1)
+        logger.info("ETL OK: %d table(s)", len(r.tables))

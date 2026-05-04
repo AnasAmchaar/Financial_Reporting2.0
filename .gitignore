@@ -6,7 +6,7 @@ dist/
 build/
 .env
 venv/
-
+.venv/
 # Database
 db/*.db
 
@@ -16,6 +16,8 @@ logs/*.log
 # Data (raw files are large / confidential)
 data/raw/*.xlsx
 data/processed/
+data/econ/cache/*
+!data/econ/cache/.gitkeep
 
 # IDE
 .vscode/

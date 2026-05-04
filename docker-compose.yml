@@ -1,0 +1,13 @@
+services:
+  ecoeye2:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ECOEYE2_DB_PATH=/data/pfa.db
+      - ECOEYE2_RAW_DIR=/data/raw
+    volumes:
+      - ecoeye2_data:/data
+
+volumes:
+  ecoeye2_data:

@@ -6,6 +6,8 @@ import logging
 
 import pandas as pd
 
+from pathlib import Path
+
 from config.settings import DATA_RAW_DIR, SOURCES
 
 logger = logging.getLogger(__name__)
@@ -29,14 +31,20 @@ def extract_sheet(filepath, cfg: dict) -> pd.DataFrame:
     return df
 
 
-def extract_all() -> dict[str, tuple[pd.DataFrame, dict]]:
+def extract_all(
+    *,
+    raw_dir: Path | None = None,
+    sources: dict | None = None,
+) -> dict[str, tuple[pd.DataFrame, dict]]:
     """
-    Extract every sheet across all files defined in SOURCES.
+    Extract every sheet across all files defined in SOURCES (or overrides).
     Returns {table_name: (DataFrame, sheet_cfg), ...}.
     """
+    raw_dir = raw_dir or DATA_RAW_DIR
+    src = sources if sources is not None else SOURCES
     frames: dict[str, tuple[pd.DataFrame, dict]] = {}
-    for filename, tables in SOURCES.items():
-        filepath = DATA_RAW_DIR / filename
+    for filename, tables in src.items():
+        filepath = raw_dir / filename
         if not filepath.exists():
             logger.warning("File not found, skipping: %s", filepath)
             continue

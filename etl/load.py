@@ -7,15 +7,18 @@ import sqlite3
 
 import pandas as pd
 
+from pathlib import Path
+
 from config.settings import DATA_PROCESSED_DIR, DB_PATH
 
 logger = logging.getLogger(__name__)
 
 
-def _get_connection() -> sqlite3.Connection:
+def _get_connection(db_path: Path | None = None) -> sqlite3.Connection:
     """Return a connection to the project SQLite database."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    path = db_path or DB_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path))
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
@@ -24,6 +27,8 @@ def load_to_sqlite(
     df: pd.DataFrame,
     table_name: str,
     if_exists: str = "replace",
+    *,
+    db_path: Path | None = None,
 ) -> None:
     """
     Write a DataFrame to a SQLite table.
@@ -34,7 +39,7 @@ def load_to_sqlite(
     table_name : Target table name.
     if_exists : 'replace' (default), 'append', or 'fail'.
     """
-    conn = _get_connection()
+    conn = _get_connection(db_path)
     try:
         df.to_sql(table_name, conn, if_exists=if_exists, index=False)
         logger.info("Loaded %d rows → SQLite table '%s'", len(df), table_name)
@@ -54,6 +59,8 @@ def load_all(
     frames: dict[str, pd.DataFrame],
     to_sqlite: bool = True,
     to_parquet: bool = False,
+    *,
+    db_path: Path | None = None,
 ) -> None:
     """
     Load every DataFrame in the dict.
@@ -61,6 +68,6 @@ def load_all(
     """
     for key, df in frames.items():
         if to_sqlite:
-            load_to_sqlite(df, table_name=key)
+            load_to_sqlite(df, table_name=key, db_path=db_path)
         if to_parquet:
             load_to_parquet(df, name=key)

@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+ecoeye2/web/node_modules
+logs
+*.log
+.cursor

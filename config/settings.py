@@ -27,16 +27,18 @@ Available transform_type values:
   "generic"        – just clean names, drop empties, deduplicate
 """
 
+import os
 from pathlib import Path
 
 # ── Paths ───────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_RAW_DIR = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 DB_DIR = PROJECT_ROOT / "db"
 LOG_DIR = PROJECT_ROOT / "logs"
 
-DB_PATH = DB_DIR / "pfa.db"
+# EcoEye2 / deployment: optional overrides (read before first import of consumers)
+DATA_RAW_DIR = Path(os.environ.get("ECOEYE2_RAW_DIR", str(PROJECT_ROOT / "data" / "raw")))
+DB_PATH = Path(os.environ.get("ECOEYE2_DB_PATH", str(DB_DIR / "pfa.db")))
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOG_FILE = LOG_DIR / "etl.log"
