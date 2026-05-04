@@ -7,6 +7,7 @@ export function AdjustmentsPage() {
   const [busy, setBusy] = useState(false)
   const [log, setLog] = useState<string[]>([])
   const [preview, setPreview] = useState<IndicatorsResp | null>(null)
+  const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   const push = (m: string) => setLog((l) => [...l, m])
 
@@ -29,9 +30,12 @@ export function AdjustmentsPage() {
     try {
       await apiFetch('/api/v1/pipeline/econ/fetch', { method: 'POST' })
       push('Fetch complete.')
+      setBanner({ type: 'ok', text: 'Macro fetch completed. Preview table updated.' })
       await refreshPreview()
     } catch (e) {
-      push(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setBanner({ type: 'err', text: msg })
+      push(msg)
     } finally {
       setBusy(false)
     }
@@ -43,8 +47,11 @@ export function AdjustmentsPage() {
     try {
       await apiFetch('/api/v1/pipeline/econ/apply', { method: 'POST' })
       push('Apply complete.')
+      setBanner({ type: 'ok', text: 'Real-value tables rebuilt.' })
     } catch (e) {
-      push(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setBanner({ type: 'err', text: msg })
+      push(msg)
     } finally {
       setBusy(false)
     }
@@ -57,6 +64,10 @@ export function AdjustmentsPage() {
         Refresh macro series (HCP / FRED / World Bank / BAM per <code className="text-emerald-400/80">econ_settings</code>),
         then rebuild <code className="text-emerald-400/80">*_real</code> tables.
       </p>
+
+      {banner ? (
+        <div className={banner.type === 'ok' ? 'banner-success' : 'banner-error'}>{banner.text}</div>
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <button

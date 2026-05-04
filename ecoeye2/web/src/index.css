@@ -42,3 +42,11 @@ body {
 .badge-muted {
   @apply rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-slate-400;
 }
+
+.banner-success {
+  @apply rounded-xl border border-emerald-500/40 bg-emerald-950/50 px-4 py-3 text-sm text-emerald-100;
+}
+
+.banner-error {
+  @apply rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-100;
+}

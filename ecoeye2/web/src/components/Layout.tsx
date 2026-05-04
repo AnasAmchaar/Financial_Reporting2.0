@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom'
 
 const nav = [
-  { to: '/', label: 'Ingest', end: true },
+  { to: '/insights', label: 'Insights', end: true },
+  { to: '/ingest', label: 'Ingest', end: true },
   { to: '/data', label: 'Data' },
   { to: '/adjustments', label: 'Adjustments' },
   { to: '/visualize', label: 'Visualize' },

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from fastapi import APIRouter
 
@@ -25,8 +24,6 @@ def settings_preview():
 
 @router.get("/health")
 def health():
-    import os
-
     return {
         "app": "EcoEye2",
         "status": "ok",
@@ -35,4 +32,57 @@ def health():
         "project_root": str(PROJECT_ROOT),
         "fred_api_key_set": bool(os.environ.get("FRED_API_KEY", "").strip()),
         "ecoeye2_api_key_set": bool(os.environ.get("ECOEYE2_API_KEY", "").strip()),
+    }
+
+
+@router.get("/econ/status")
+def econ_status():
+    """Macro ingestion snapshot for the UI (no secrets)."""
+    fred_set = bool(os.environ.get("FRED_API_KEY", "").strip())
+    indicators: dict[str, dict[str, str | None]] = {}
+    max_fetched: str | None = None
+
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='econ_indicators'"
+        )
+        if not cur.fetchone():
+            return {
+                "fred_api_key_set": fred_set,
+                "indicators": indicators,
+                "econ_indicators_last_fetched_at": max_fetched,
+                "note": "econ_indicators table not found; run macro fetch from Adjustments.",
+            }
+
+        cur = conn.execute("SELECT MAX(fetched_at) AS mx FROM econ_indicators")
+        r0 = cur.fetchone()
+        if r0 and r0["mx"] is not None:
+            max_fetched = str(r0["mx"])
+
+        cur = conn.execute(
+            """
+            SELECT indicator_code, source, fetched_at
+            FROM econ_indicators
+            WHERE indicator_code IN ('cpi', 'ppi', 'cpi_yoy')
+            ORDER BY fetched_at DESC
+            """
+        )
+        seen: set[str] = set()
+        for row in cur:
+            code = row["indicator_code"]
+            if not code or code in seen:
+                continue
+            seen.add(code)
+            indicators[str(code)] = {
+                "source": str(row["source"]) if row["source"] is not None else None,
+                "fetched_at": str(row["fetched_at"]) if row["fetched_at"] is not None else None,
+            }
+    finally:
+        conn.close()
+
+    return {
+        "fred_api_key_set": fred_set,
+        "indicators": indicators,
+        "econ_indicators_last_fetched_at": max_fetched,
     }

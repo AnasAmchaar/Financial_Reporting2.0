@@ -128,7 +128,6 @@ def reporting_top_dimensions(
         rtq = quote_ident(real_name)
         rcq = quote_ident(real_col)
         dmq = quote_ident(dim)
-        drq = quote_ident(dim)
 
         sql = f"""
             SELECT m.{dmq} AS dim_value,

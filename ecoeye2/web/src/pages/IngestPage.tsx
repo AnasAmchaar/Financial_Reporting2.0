@@ -12,6 +12,7 @@ export function IngestPage() {
   const [log, setLog] = useState<string[]>([])
   const [filename, setFilename] = useState('')
   const [etlMode, setEtlMode] = useState<'all' | 'file'>('all')
+  const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   const push = (m: string) => setLog((l) => [...l, `${new Date().toISOString().slice(11, 19)}  ${m}`])
 
@@ -33,9 +34,12 @@ export function IngestPage() {
       if (!res.ok) throw new Error(await res.text())
       const j = (await res.json()) as { filename: string }
       setFilename(j.filename)
+      setBanner({ type: 'ok', text: `Uploaded ${j.filename}. Register in SOURCES if this is a new workbook.` })
       push(`Saved as ${j.filename} (register in config/settings.py SOURCES if new workbook).`)
     } catch (e) {
-      push(`Upload error: ${e instanceof Error ? e.message : String(e)}`)
+      const msg = e instanceof Error ? e.message : String(e)
+      setBanner({ type: 'err', text: msg })
+      push(`Upload error: ${msg}`)
     } finally {
       setBusy(false)
     }
@@ -53,12 +57,19 @@ export function IngestPage() {
         method: 'POST',
         body: JSON.stringify(body),
       })
-      if (!r.ok) push(`ETL failed: ${r.message ?? 'see tables'}`)
+      if (!r.ok) {
+        push(`ETL failed: ${r.message ?? 'see tables'}`)
+        setBanner({ type: 'err', text: r.message ?? 'ETL reported failure; see log.' })
+      } else {
+        setBanner({ type: 'ok', text: 'ETL finished. Check the log for per-table results.' })
+      }
       for (const t of r.tables) {
         push(`${t.ok ? 'OK' : 'ERR'}  ${t.table}  (${t.rows} rows) ${t.error ?? ''}`)
       }
     } catch (e) {
-      push(`ETL error: ${e instanceof Error ? e.message : String(e)}`)
+      const msg = e instanceof Error ? e.message : String(e)
+      setBanner({ type: 'err', text: msg })
+      push(`ETL error: ${msg}`)
     } finally {
       setBusy(false)
     }
@@ -71,6 +82,10 @@ export function IngestPage() {
         Upload Excel to <code className="text-emerald-400/90">data/raw</code>. Registered filenames in{' '}
         <code className="text-emerald-400/90">SOURCES</code> are processed by ETL into SQLite.
       </p>
+
+      {banner ? (
+        <div className={banner.type === 'ok' ? 'banner-success' : 'banner-error'}>{banner.text}</div>
+      ) : null}
 
       <div className="app-card p-5">
         <label className="mb-2 block text-sm font-medium text-slate-300">Upload workbook</label>
