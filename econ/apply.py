@@ -192,7 +192,27 @@ def apply_all() -> None:
             dcode = spec.get("deflator", "cpi")
             defl = cpi_def if dcode == "cpi" else ppi_def
             dname = f"{dcode}_deflator"
-            df = apply_deflator(df, value_col, "date", defl, base_period=BASE_PERIOD, deflator_col_name=dname)
+            
+            if spec.get("granular_demo") and value_col in df.columns:
+                # Demo: Revenue (positive) uses CPI, Costs (negative) use PPI
+                rev_mask = pd.to_numeric(df[value_col], errors="coerce") > 0
+                
+                df_rev = apply_deflator(df[rev_mask].copy(), value_col, "date", cpi_def, base_period=BASE_PERIOD, deflator_col_name="cpi_deflator")
+                df_cost = apply_deflator(df[~rev_mask].copy(), value_col, "date", ppi_def, base_period=BASE_PERIOD, deflator_col_name="ppi_deflator")
+                
+                # We need to unify the real amount column name, usually it is `{value_col}_real_{suffix}`
+                # We'll let apply_deflator do its thing, then combine
+                suffix = BASE_PERIOD.replace("-", "_")
+                real_col = f"{value_col}_real_{suffix}"
+                
+                # In df_rev, the deflator is cpi_deflator. In df_cost, it's ppi_deflator.
+                # Let's map both back to a common 'avg_deflator' or just keep them separate
+                df_rev["cpi_deflator"] = df_rev["cpi_deflator"]
+                df_cost["ppi_deflator"] = df_cost["ppi_deflator"]
+                
+                df = pd.concat([df_rev, df_cost], ignore_index=True)
+            else:
+                df = apply_deflator(df, value_col, "date", defl, base_period=BASE_PERIOD, deflator_col_name=dname)
             df = apply_present_value(df, value_col, "date", ref_date=ref, mode=mode, annual_rate=rate)
 
             out_name = f"{table}_real"

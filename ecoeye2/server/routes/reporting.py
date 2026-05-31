@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from config.econ_settings import WACC_DEMO_CONFIG
 from ecoeye2.server.dbutil import connect, list_user_tables, quote_ident, table_columns
 
 router = APIRouter()
@@ -94,6 +95,122 @@ def reporting_summary(
             ),
             "note": note,
         }
+    finally:
+        conn.close()
+
+
+@router.get("/reporting/eva-demo")
+def reporting_eva_demo():
+    """
+    Computes Economic Value Added (EVA) for demo purposes.
+    EVA = NOPAT - (Invested Capital * WACC)
+    We proxy NOPAT with sum of positive amounts in data_reel,
+    and Invested Capital with sum of data_bilan.
+    """
+    wacc = (
+        WACC_DEMO_CONFIG["cost_of_equity"]
+        + WACC_DEMO_CONFIG["cost_of_debt"] * (1 - WACC_DEMO_CONFIG["tax_rate"])
+    )
+
+    conn = connect()
+    try:
+        sql = """
+            SELECT
+                strftime('%Y-%m', r.date) AS period,
+                SUM(CASE WHEN r.amount > 0 THEN r.amount ELSE 0 END) AS nopat,
+                (SELECT SUM(b.amount) FROM data_bilan b WHERE strftime('%Y-%m', b.date) = strftime('%Y-%m', r.date)) AS invested_capital
+            FROM data_reel r
+            WHERE r.date IS NOT NULL
+            GROUP BY period
+            ORDER BY period
+        """
+        cur = conn.execute(sql)
+        rows = cur.fetchall()
+
+        points = []
+        for r in rows:
+            nopat = float(r["nopat"] or 0)
+            ic = float(r["invested_capital"] or 0)
+            capital_charge = ic * (wacc / 12)  # Monthly charge
+            eva = nopat - capital_charge
+            points.append({
+                "period": r["period"],
+                "nopat": nopat,
+                "invested_capital": ic,
+                "wacc": wacc,
+                "capital_charge": capital_charge,
+                "eva": eva,
+            })
+        return {"demo": "Economic Value Added", "points": points}
+    finally:
+        conn.close()
+
+
+@router.get("/reporting/vpmf-demo")
+def reporting_vpmf_demo(
+    table: str = Query("data_reel"),
+    group_by: str = Query("month", pattern="^(month|partner|channel)$")
+):
+    """
+    Synthesizes a Volume, Price, Mix, FX (VPMF) bridge for demo purposes.
+    Because we only have `amount`, we assume:
+    - Price Effect = amount * (1 - 1/cpi_deflator)  (Inflation portion)
+    - Volume Effect = remainder
+    """
+    conn = connect()
+    try:
+        real_name = f"{table}_real"
+        
+        if group_by == "month":
+            gb_m = "strftime('%Y-%m', m.date)"
+        elif group_by == "partner":
+            gb_m = "m.partner"
+        else:
+            gb_m = "m.channel"
+
+        sql = f"""
+            SELECT
+                {gb_m} AS period,
+                SUM(m.amount) AS nominal,
+                SUM(r.amount_real_2023_12) AS real_value,
+                AVG(r.cpi_deflator) AS cpi_deflator
+            FROM {table} m
+            LEFT JOIN {real_name} r ON date(m.date) = date(r.date)
+                AND COALESCE(m.partner, '') = COALESCE(r.partner, '')
+                AND COALESCE(m.channel, '') = COALESCE(r.channel, '')
+            WHERE m.date IS NOT NULL
+            GROUP BY period
+            ORDER BY period
+        """
+        cur = conn.execute(sql)
+        rows = cur.fetchall()
+
+        points = []
+        for i, r in enumerate(rows):
+            nominal = float(r["nominal"] or 0)
+            deflator = float(r["cpi_deflator"] or 1.0)
+            
+            # Price effect approximation
+            price_effect = nominal * (1 - (1 / deflator)) if deflator else 0
+            volume_effect = nominal - price_effect
+            
+            # Delta compared to previous period
+            prev_nominal = float(rows[i-1]["nominal"] or 0) if i > 0 else nominal
+            delta = nominal - prev_nominal
+            
+            delta_price = price_effect - (float(rows[i-1]["nominal"] or 0) * (1 - (1 / float(rows[i-1]["cpi_deflator"] or 1.0))) if i > 0 else price_effect)
+            delta_volume = delta - delta_price
+
+            points.append({
+                "period": r["period"],
+                "nominal": nominal,
+                "price_effect": price_effect,
+                "volume_effect": volume_effect,
+                "delta": delta,
+                "delta_price": delta_price,
+                "delta_volume": delta_volume,
+            })
+        return {"demo": "VPMF Growth Decomposition", "points": points}
     finally:
         conn.close()
 

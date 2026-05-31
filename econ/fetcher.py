@@ -36,6 +36,24 @@ def _write_cache(logical: str, df: pd.DataFrame) -> Path | None:
     return path
 
 
+def _read_cache(logical: str) -> pd.DataFrame | None:
+    """Fallback: load the most recently modified parquet file for this indicator."""
+    _ensure_cache_dir()
+    candidates = list(ECON_CACHE_DIR.glob(f"{logical}_*.parquet"))
+    if not candidates:
+        return None
+    # Sort by last modified
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    best = candidates[0]
+    try:
+        df = pd.read_parquet(best)
+        logger.info("Using cached fallback for %s -> %s", logical, best)
+        return df
+    except Exception as e:
+        logger.warning("Failed to read cache %s: %s", best, e)
+        return None
+
+
 def fetch_logical_indicator(logical: str, chain: list[dict[str, Any]]) -> pd.DataFrame:
     """Try each source in order until a non-empty series is returned."""
     for spec in chain:
@@ -81,6 +99,10 @@ def fetch_logical_indicator(logical: str, chain: list[dict[str, Any]]) -> pd.Dat
             return df
 
     logger.error("All sources failed for logical indicator %s", logical)
+    cached_df = _read_cache(logical)
+    if cached_df is not None and not cached_df.empty:
+        return cached_df
+        
     return normalize_indicator_df(pd.DataFrame())
 
 

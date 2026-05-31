@@ -16,7 +16,8 @@ body {
 }
 
 .app-card {
-  @apply rounded-2xl border border-slate-800/90 bg-slate-900/55 shadow-[0_20px_60px_-35px_rgba(16,185,129,.3)] backdrop-blur-sm;
+  @apply rounded-2xl border border-slate-800/90 bg-slate-900/55 backdrop-blur-sm;
+  box-shadow: 0 20px 60px -35px rgba(16, 185, 129, 0.3);
 }
 
 .section-title {

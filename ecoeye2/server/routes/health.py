@@ -5,6 +5,7 @@ import os
 from fastapi import APIRouter
 
 from config.settings import DB_PATH, DATA_RAW_DIR, PROJECT_ROOT
+from config.econ_settings import INDICATOR_CHAIN
 from ecoeye2.server.dbutil import connect
 
 router = APIRouter()
@@ -41,6 +42,14 @@ def econ_status():
     fred_set = bool(os.environ.get("FRED_API_KEY", "").strip())
     indicators: dict[str, dict[str, str | None]] = {}
     max_fetched: str | None = None
+    
+    # Pre-populate all expected indicators with 'bad' status
+    for key in INDICATOR_CHAIN.keys():
+        indicators[key] = {
+            "source": None,
+            "fetched_at": None,
+            "status": "bad"
+        }
 
     conn = connect()
     try:
@@ -60,11 +69,11 @@ def econ_status():
         if r0 and r0["mx"] is not None:
             max_fetched = str(r0["mx"])
 
+        # Fetch all distinct indicators and their latest fetch time
         cur = conn.execute(
             """
             SELECT indicator_code, source, fetched_at
             FROM econ_indicators
-            WHERE indicator_code IN ('cpi', 'ppi', 'cpi_yoy')
             ORDER BY fetched_at DESC
             """
         )
@@ -74,10 +83,14 @@ def econ_status():
             if not code or code in seen:
                 continue
             seen.add(code)
-            indicators[str(code)] = {
-                "source": str(row["source"]) if row["source"] is not None else None,
-                "fetched_at": str(row["fetched_at"]) if row["fetched_at"] is not None else None,
-            }
+            
+            # If the code is in our expected indicators, update it to good
+            if code in indicators:
+                indicators[str(code)] = {
+                    "source": str(row["source"]) if row["source"] is not None else None,
+                    "fetched_at": str(row["fetched_at"]) if row["fetched_at"] is not None else None,
+                    "status": "good"
+                }
     finally:
         conn.close()
 

@@ -95,6 +95,18 @@ export function VisualizePage() {
     [data],
   )
 
+  useEffect(() => {
+    window.__ECOEYE_CONTEXT__ = {
+      page: 'Visualize',
+      table: table,
+      group_by: groupBy,
+      mode: mode,
+      summary: summary,
+      chart_data_points_count: chartData.length,
+      chart_data_sample: chartData.slice(0, 10), // Send first 10 points so LLM doesn't choke on huge arrays
+    }
+  }, [summary, chartData, table, groupBy, mode])
+
   function downloadCsv() {
     const blob = new Blob([toCsv(data, mode)], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)

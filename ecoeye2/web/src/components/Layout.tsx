@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { ChatBot } from './ChatBot'
 
 const nav = [
   { to: '/insights', label: 'Insights', end: true },
@@ -69,6 +70,7 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+      <ChatBot />
     </div>
   )
 }

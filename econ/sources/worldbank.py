@@ -26,7 +26,7 @@ def fetch_indicator(
     Fetch annual observations. indicator e.g. FP.CPI.TOTL, FP.CPI.TOTL.ZG.
     """
     url = WB_BASE.format(country=country_iso3, indicator=indicator)
-    params: dict[str, Any] = {"format": "json", "per_page": 20000}
+    params: dict[str, Any] = {"format": "json", "per_page": 1000}
     try:
         r = requests.get(url, params=params, timeout=60)
         r.raise_for_status()

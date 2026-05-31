@@ -23,12 +23,20 @@ BASE_PERIOD = "2023-12"  # YYYY-MM
 
 # ── Discount / time-value ───────────────────────────────────────────────────
 DISCOUNT = {
-    "mode": "constant",  # "constant" | "series"
-    "rate": 0.025,  # annual, e.g. BAM key rate when mode is constant
+    "mode": "fisher",  # "constant" | "series" | "fisher"
+    "rate": 0.03,  # annual, e.g. BAM key rate when mode is constant or nominal rate for fisher
     "ref_date": "2023-12-01",  # PV as-of this date (YYYY-MM-DD)
-    # When mode is "series", use indicator_code from econ_indicators (e.g. cpi_yoy as decimal)
+    # When mode is "series" or "fisher", use indicator_code from econ_indicators
     "series_indicator": "cpi_yoy",
     "series_source_priority": ("fred", "worldbank", "hcp"),
+}
+
+# ── WACC & EVA Demo Config ──────────────────────────────────────────────────
+WACC_DEMO_CONFIG = {
+    "cost_of_equity": 0.10,
+    "cost_of_debt": 0.05,
+    "tax_rate": 0.30,
+    "debt_to_equity": 0.40,  # e.g. D/E = 0.4 -> Wd = 0.4/1.4, We = 1/1.4
 }
 
 # ── Logical indicators: try sources in order until data is returned ───────────
@@ -65,6 +73,7 @@ ADJUSTMENTS = {
         "value_col": "amount",
         "deflator": "cpi",
         "date_from": ("year", "month"),
+        "granular_demo": True,
     },
     # Workbook budget sheets often have month only; align with template fiscal year.
     "data_budget_topline": {
