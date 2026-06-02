@@ -105,7 +105,7 @@ def reporting_eva_demo():
     Computes Economic Value Added (EVA) for demo purposes.
     EVA = NOPAT - (Invested Capital * WACC)
     We proxy NOPAT with sum of positive amounts in data_reel,
-    and Invested Capital with sum of data_bilan.
+    and Invested Capital with sum of data_bilan_real.
     """
     wacc = (
         WACC_DEMO_CONFIG["cost_of_equity"]
@@ -114,11 +114,16 @@ def reporting_eva_demo():
 
     conn = connect()
     try:
+        # Verify defensive existence of the melted table data_bilan_real
+        cur_t = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='data_bilan_real'")
+        if not cur_t.fetchone():
+            return {"demo": "Economic Value Added", "points": []}
+
         sql = """
             SELECT
                 strftime('%Y-%m', r.date) AS period,
                 SUM(CASE WHEN r.amount > 0 THEN r.amount ELSE 0 END) AS nopat,
-                (SELECT SUM(b.amount) FROM data_bilan b WHERE strftime('%Y-%m', b.date) = strftime('%Y-%m', r.date)) AS invested_capital
+                (SELECT SUM(b.amount) FROM data_bilan_real b WHERE strftime('%Y-%m', b.date) = strftime('%Y-%m', r.date)) AS invested_capital
             FROM data_reel r
             WHERE r.date IS NOT NULL
             GROUP BY period

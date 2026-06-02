@@ -3,6 +3,7 @@ import { ChatBot } from './ChatBot'
 
 const nav = [
   { to: '/insights', label: 'Insights', end: true },
+  { to: '/report', label: 'Automated Report' },
   { to: '/ingest', label: 'Ingest', end: true },
   { to: '/data', label: 'Data' },
   { to: '/adjustments', label: 'Adjustments' },
@@ -13,7 +14,7 @@ const nav = [
 export function Layout() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur print:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/20 text-lg font-bold text-emerald-300">
@@ -29,7 +30,7 @@ export function Layout() {
           </span>
         </div>
       </header>
-      <nav className="flex border-b border-slate-800 bg-slate-950/70 px-2 py-2 md:hidden">
+      <nav className="flex border-b border-slate-800 bg-slate-950/70 px-2 py-2 md:hidden print:hidden">
         <div className="flex flex-wrap gap-1">
           {nav.map(({ to, label, end }) => (
             <NavLink
@@ -46,7 +47,7 @@ export function Layout() {
         </div>
       </nav>
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-0 px-0 md:px-2">
-        <aside className="hidden w-52 shrink-0 p-3 md:block">
+        <aside className="hidden w-52 shrink-0 p-3 md:block print:hidden">
           <nav className="flex flex-col gap-1">
             {nav.map(({ to, label, end }) => (
               <NavLink
@@ -66,11 +67,13 @@ export function Layout() {
             ))}
           </nav>
         </aside>
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 print:p-0 print:m-0">
           <Outlet />
         </main>
       </div>
-      <ChatBot />
+      <div className="print:hidden">
+        <ChatBot />
+      </div>
     </div>
   )
 }

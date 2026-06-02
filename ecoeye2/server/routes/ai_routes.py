@@ -26,9 +26,9 @@ async def chat_with_ai(request: ChatRequest):
 
     genai.configure(api_key=api_key)
     
-    # Use Gemini 1.5 Flash as it is fast and excellent for data analysis
+    # Use Gemini 2.5 Flash as it is fast and excellent for data analysis
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.5-flash",
         system_instruction=(
             "You are an expert financial and economic analyst embedded inside the EcoEye2 "
             "Purchasing-Power-Aware Financial Reporting Application. "
