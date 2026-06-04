@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { apiFetch } from '../lib/api'
 
@@ -16,10 +16,12 @@ declare global {
 export function ChatBot() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', content: 'Hello! I am your AI Financial Analyst. Ask me anything about the data or charts.' }
+    { role: 'ai', content: 'Hello! I am your **RAG-enhanced** AI Financial Analyst. I can now answer questions grounded in your actual financial data, CPI/PPI indicators, and economic metrics. Try asking me about specific partners, trends, or inflation impacts!' }
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [useRag, setUseRag] = useState(true)
+  const [isReindexing, setIsReindexing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -42,11 +44,11 @@ export function ChatBot() {
       
       const payload = {
         message: userMsg,
-        context: context
+        context: context,
+        use_rag: useRag
       }
 
-      // We use the full API URL just in case, but apiFetch uses the relative /api/v1
-      const res = await apiFetch<{ response: string }>('/api/v1/ai/chat', {
+      const res = await apiFetch<{ response: string; mode?: string }>('/api/v1/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,14 +81,41 @@ export function ChatBot() {
       <div className={`fixed bottom-6 right-6 w-96 h-[32rem] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 transition-all origin-bottom-right ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}>
         
         {/* Header */}
-        <div className="bg-slate-800/80 p-4 border-b border-slate-700/80 flex justify-between items-center backdrop-blur-md">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-            <h3 className="text-slate-200 font-semibold text-sm tracking-wide">EcoEye2 AI Analyst</h3>
+        <div className="bg-slate-800/80 p-3 border-b border-slate-700/80 backdrop-blur-md">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${useRag ? 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`} />
+              <h3 className="text-slate-200 font-semibold text-sm tracking-wide">EcoEye2 AI Analyst</h3>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-200">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
           </div>
-          <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-200">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-          </button>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
+            <button
+              onClick={() => setUseRag(r => !r)}
+              className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full transition-colors ${useRag ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-slate-700/50 text-slate-500 border border-slate-600/30'}`}
+            >
+              RAG {useRag ? 'ON' : 'OFF'}
+            </button>
+            <button
+              onClick={async () => {
+                setIsReindexing(true)
+                try {
+                  await apiFetch('/api/v1/ai/rag/reindex', { method: 'POST' })
+                  setMessages(prev => [...prev, { role: 'ai', content: '✅ **RAG index rebuilt successfully.** I now have the latest data from your database.' }])
+                } catch (e: any) {
+                  setMessages(prev => [...prev, { role: 'ai', content: `⚠️ Re-index failed: ${e.message}` }])
+                } finally {
+                  setIsReindexing(false)
+                }
+              }}
+              disabled={isReindexing}
+              className="text-[10px] text-slate-500 hover:text-violet-400 transition-colors disabled:opacity-40"
+            >
+              {isReindexing ? '⟳ Indexing…' : '⟳ Re-index Data'}
+            </button>
+          </div>
         </div>
 
         {/* Message Area */}

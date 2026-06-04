@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from ecoeye2.server.routes import analytics, econ_routes, health, pipeline, reporting, tables, uploads, ai_routes
+from ecoeye2.server.routes import analytics, econ_routes, health, pipeline, reporting, tables, uploads, ai_routes, forecast_routes
 from ecoeye2.server.security import require_api_key
 
 api_router = APIRouter(prefix="/api/v1")
@@ -14,4 +14,5 @@ _secured.include_router(econ_routes.router, tags=["econ"])
 _secured.include_router(analytics.router, tags=["analytics"])
 _secured.include_router(reporting.router, tags=["reporting"])
 _secured.include_router(ai_routes.router, tags=["ai"])
+_secured.include_router(forecast_routes.router, tags=["forecast"])
 api_router.include_router(_secured)

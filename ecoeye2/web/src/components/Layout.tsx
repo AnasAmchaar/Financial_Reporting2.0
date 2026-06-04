@@ -8,6 +8,7 @@ const nav = [
   { to: '/data', label: 'Data' },
   { to: '/adjustments', label: 'Adjustments' },
   { to: '/visualize', label: 'Visualize' },
+  { to: '/forecast', label: '✦ AI Forecast' },
   { to: '/settings', label: 'Settings' },
 ]
 
