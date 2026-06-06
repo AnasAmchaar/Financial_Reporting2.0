@@ -561,7 +561,9 @@ Be concise, data-driven, and use specific numbers from the forecast.`
                       <td className="py-2 text-right font-mono text-slate-500">{fmt(p.confidence_lower)}</td>
                       <td className="py-2 text-right font-mono text-slate-500">{fmt(p.confidence_upper)}</td>
                       <td className="py-2 text-right font-mono text-slate-400">
-                        {erosion > 0 ? `-${erosion.toFixed(1)}%` : `${erosion.toFixed(1)}%`}
+                        <span className={Math.abs(erosion) > 5 ? 'text-red-400' : Math.abs(erosion) > 2 ? 'text-amber-400' : 'text-slate-400'}>
+                          {erosion > 0 ? '-' : '+'}{Math.abs(erosion).toFixed(1)}%
+                        </span>
                       </td>
                     </tr>
                   )

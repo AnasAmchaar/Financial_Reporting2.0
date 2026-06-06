@@ -11,23 +11,22 @@ import logging
 import os
 from typing import Any
 
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from google import genai
+from google.genai import types
 
-from ecoeye2.server.rag.indexer import CHROMA_DIR, COLLECTION_NAME
+from ecoeye2.server.rag.indexer import CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL
 
 logger = logging.getLogger(__name__)
 
 
 def _embed_query(text: str, api_key: str) -> list[float]:
     """Embed a single query for retrieval."""
-    genai.configure(api_key=api_key)
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=text,
-        task_type="retrieval_query",
+    client = genai.Client(api_key=api_key)
+    result = client.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=text,
     )
-    return result["embedding"]
+    return result.embeddings[0].values
 
 
 def retrieve_chunks(
@@ -104,7 +103,7 @@ def rag_generate(
     if not api_key:
         return "Error: GEMINI_API_KEY is not configured."
 
-    genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key)
 
     # 1. Retrieve relevant data chunks
     chunks = retrieve_chunks(user_message, top_k=top_k, api_key=api_key)
@@ -155,17 +154,13 @@ def rag_generate(
     prompt = "\n".join(prompt_parts)
 
     # 5. Generate with Gemini
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        system_instruction=system_instruction,
-    )
-
     try:
-        response = model.generate_content(
-            prompt,
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            },
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+            ),
         )
         return response.text
     except Exception as e:

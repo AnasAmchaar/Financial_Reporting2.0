@@ -14,6 +14,22 @@ import {
 import ReactMarkdown from 'react-markdown'
 import { apiFetch } from '../lib/api'
 
+type PredictionPoint = {
+  period: string
+  predicted_nominal: number
+  predicted_real: number
+  confidence_lower: number
+  confidence_upper: number
+}
+
+type ForecastResponse = {
+  historical: { period: string; amount: number; amount_real?: number }[]
+  predictions: PredictionPoint[]
+  metrics: Record<string, number>
+  feature_importances: { feature: string; importance: number }[]
+  model_info: Record<string, string>
+}
+
 type ReportingSummary = {
   table: string
   period_min: string | null
@@ -75,6 +91,11 @@ export function ReportPage() {
   const [aiError, setAiError] = useState<string>('')
   const [err, setErr] = useState('')
 
+  // Forecast states
+  const [forecastData, setForecastData] = useState<ForecastResponse | null>(null)
+  const [isForecastLoading, setIsForecastLoading] = useState(false)
+  const [forecastHorizon, setForecastHorizon] = useState(12)
+
   // Fetch report data
   const loadReportData = async () => {
     setErr('')
@@ -104,9 +125,27 @@ export function ReportPage() {
     }
   }
 
+  const loadForecast = async () => {
+    setIsForecastLoading(true)
+    try {
+      const params = new URLSearchParams({ table, horizon: String(forecastHorizon), group_by: 'overall' })
+      const data = await apiFetch<ForecastResponse>(`/api/v1/forecast/predict?${params}`)
+      setForecastData(data)
+    } catch {
+      setForecastData(null)
+    } finally {
+      setIsForecastLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadReportData()
   }, [table])
+
+  // Auto-load forecast when report data loads
+  useEffect(() => {
+    if (summary) loadForecast()
+  }, [summary, forecastHorizon])
 
   // Sync state for LLM context
   useEffect(() => {
@@ -553,6 +592,204 @@ Provide a highly polished, professional analysis in Markdown. Use clean headings
             )}
 
           </div>
+        </div>
+
+        {/* SECTION 5: FORWARD-LOOKING PROJECTIONS (FORECAST) */}
+        <div className="space-y-4 print:break-before-page">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2 uppercase tracking-wider flex items-center gap-2 flex-1">
+              <span className="w-1.5 h-4 bg-violet-500 rounded-sm"></span>
+              5. Forward-Looking Projections (ML Forecast)
+            </h2>
+            <div className="flex items-center gap-3 print:hidden ml-4">
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                Horizon
+              </label>
+              <select
+                value={forecastHorizon}
+                onChange={(e) => setForecastHorizon(Number(e.target.value))}
+                className="app-input !w-20 !py-1 text-xs"
+              >
+                {[3, 6, 9, 12, 18, 24].map((h) => (
+                  <option key={h} value={h}>{h}m</option>
+                ))}
+              </select>
+              <button
+                onClick={loadForecast}
+                disabled={isForecastLoading}
+                className="btn-secondary !py-1 !px-3 text-xs"
+              >
+                {isForecastLoading ? 'Loading…' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+
+          {isForecastLoading ? (
+            <div className="app-card p-8 text-center">
+              <div className="inline-flex items-center gap-2 text-sm text-violet-400">
+                <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                Training model & generating predictions…
+              </div>
+            </div>
+          ) : forecastData && forecastData.predictions.length > 0 ? (
+            <>
+              {/* Forecast KPIs */}
+              {(() => {
+                const preds = forecastData.predictions
+                const totalNominal = preds.reduce((s, p) => s + p.predicted_nominal, 0)
+                const totalReal = preds.reduce((s, p) => s + p.predicted_real, 0)
+                const erosionPct = totalNominal > 0 ? ((1 - totalReal / totalNominal) * 100) : 0
+                const avgMonthly = totalNominal / preds.length
+                const confLow = preds.reduce((s, p) => s + p.confidence_lower, 0)
+                const confHigh = preds.reduce((s, p) => s + p.confidence_upper, 0)
+                return (
+                  <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+                    <div className="app-card p-3 border-violet-500/15">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80">Projected Nominal</div>
+                      <div className="mt-1 text-lg font-black text-violet-300 tabular-nums">{fmt(totalNominal)}</div>
+                      <div className="text-[10px] text-slate-600">{preds.length} months ahead</div>
+                    </div>
+                    <div className="app-card p-3 border-sky-500/15">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-400/80">Projected Real</div>
+                      <div className="mt-1 text-lg font-black text-sky-300 tabular-nums">{fmt(totalReal)}</div>
+                      <div className="text-[10px] text-slate-600">Constant prices</div>
+                    </div>
+                    <div className="app-card p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Inflation Gap</div>
+                      <div className={`mt-1 text-lg font-black tabular-nums ${erosionPct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{erosionPct > 0 ? '-' : '+'}{Math.abs(erosionPct).toFixed(1)}%</div>
+                      <div className="text-[10px] text-slate-600">{erosionPct > 0 ? 'Purchasing power loss' : 'Purchasing power gain'}</div>
+                    </div>
+                    <div className="app-card p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Avg Monthly</div>
+                      <div className="mt-1 text-lg font-black text-white tabular-nums">{fmt(avgMonthly)}</div>
+                      <div className="text-[10px] text-slate-600">MAD / month</div>
+                    </div>
+                    <div className="app-card p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Confidence Range</div>
+                      <div className="mt-1 text-sm font-bold text-slate-300 tabular-nums">{fmt(confLow)}</div>
+                      <div className="text-[10px] text-slate-600">to {fmt(confHigh)}</div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Forecast Chart */}
+              <div className="app-card p-5 border-violet-500/10">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-violet-300 mb-3">
+                  Projected Revenue — Nominal vs Real
+                </h3>
+                <div className="h-[260px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={forecastData.predictions.map((p) => ({
+                        ...p,
+                        erosion: p.predicted_nominal > 0 ? ((1 - p.predicted_real / p.predicted_nominal) * 100) : 0,
+                      }))}
+                      margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="fcConfGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey="period" tick={{ fill: '#64748b', fontSize: 9 }} />
+                      <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 10 }} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                      <Tooltip
+                        contentStyle={{ background: '#090d16', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                        labelStyle={{ color: '#94a3b8', fontWeight: 'bold' }}
+                        formatter={(value: number, name: string) => [
+                          name === 'Erosion %' ? `${value.toFixed(1)}%` : fmt(value) + ' MAD',
+                          name,
+                        ]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                      <Area yAxisId="left" type="monotone" dataKey="confidence_upper" fill="url(#fcConfGrad)" stroke="none" name="Conf. Upper" legendType="none" />
+                      <Area yAxisId="left" type="monotone" dataKey="confidence_lower" fill="#090d16" stroke="none" name="Conf. Lower" legendType="none" />
+                      <Bar yAxisId="left" dataKey="predicted_nominal" name="Nominal" fill="#a78bfa" fillOpacity={0.7} maxBarSize={20} />
+                      <Bar yAxisId="left" dataKey="predicted_real" name="Real" fill="#38bdf8" fillOpacity={0.7} maxBarSize={20} />
+                      <Line yAxisId="right" type="monotone" dataKey="erosion" name="Erosion %" stroke="#f87171" strokeWidth={2} dot={{ r: 2 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Forecast Detail Table */}
+              <div className="app-card p-4 border-slate-800 print:shadow-none">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 border-b border-slate-800 pb-2">
+                  Detailed Monthly Projections (MAD)
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="app-table text-xs">
+                    <thead>
+                      <tr>
+                        <th>Period</th>
+                        <th className="text-right">Predicted Nominal</th>
+                        <th className="text-right">Predicted Real</th>
+                        <th className="text-right">Conf. Lower</th>
+                        <th className="text-right">Conf. Upper</th>
+                        <th className="text-right">Erosion %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {forecastData.predictions.map((p, idx) => {
+                        const erosion = p.predicted_nominal > 0
+                          ? ((1 - p.predicted_real / p.predicted_nominal) * 100)
+                          : 0
+                        return (
+                          <tr key={idx}>
+                            <td className="font-mono font-semibold text-white">{p.period}</td>
+                            <td className="text-right font-mono text-violet-300">{fmt(p.predicted_nominal)}</td>
+                            <td className="text-right font-mono text-sky-300">{fmt(p.predicted_real)}</td>
+                            <td className="text-right font-mono text-slate-500">{fmt(p.confidence_lower)}</td>
+                            <td className="text-right font-mono text-slate-500">{fmt(p.confidence_upper)}</td>
+                            <td className="text-right font-mono">
+                              <span className={erosion < 0 ? 'text-emerald-400' : Math.abs(erosion) > 5 ? 'text-red-400' : Math.abs(erosion) > 2 ? 'text-amber-400' : 'text-slate-400'}>
+                                {erosion > 0 ? '-' : '+'}{Math.abs(erosion).toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      {/* Totals row */}
+                      {(() => {
+                        const preds = forecastData.predictions
+                        const totN = preds.reduce((s, p) => s + p.predicted_nominal, 0)
+                        const totR = preds.reduce((s, p) => s + p.predicted_real, 0)
+                        const totCL = preds.reduce((s, p) => s + p.confidence_lower, 0)
+                        const totCH = preds.reduce((s, p) => s + p.confidence_upper, 0)
+                        const totE = totN > 0 ? ((1 - totR / totN) * 100) : 0
+                        return (
+                          <tr className="!bg-slate-800/40 font-bold border-t-2 border-slate-700">
+                            <td className="text-white uppercase text-[11px]">Total ({preds.length}m)</td>
+                            <td className="text-right font-mono text-violet-200">{fmt(totN)}</td>
+                            <td className="text-right font-mono text-sky-200">{fmt(totR)}</td>
+                            <td className="text-right font-mono text-slate-400">{fmt(totCL)}</td>
+                            <td className="text-right font-mono text-slate-400">{fmt(totCH)}</td>
+                            <td className={`text-right font-mono ${totE > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{totE > 0 ? '-' : '+'}{Math.abs(totE).toFixed(1)}%</td>
+                          </tr>
+                        )
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex items-center gap-4 text-[10px] text-slate-600 border-t border-slate-800/60 pt-2">
+                  <span>Model: {forecastData.model_info.ensemble || 'GBR + Holt-Winters'}</span>
+                  <span>R² = {forecastData.metrics.r2?.toFixed(3)}</span>
+                  <span>MAE = {fmt(forecastData.metrics.mae)}</span>
+                  <span>Training obs: {forecastData.metrics.n_train}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="app-card p-6 text-center text-slate-500 text-sm">
+              {forecastData === null
+                ? 'Forecast could not be loaded. Ensure the ML pipeline is configured.'
+                : 'No predictions available.'}
+            </div>
+          )}
         </div>
 
       </div>

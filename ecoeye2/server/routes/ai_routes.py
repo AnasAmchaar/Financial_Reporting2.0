@@ -42,31 +42,29 @@ async def chat_with_ai(request: ChatRequest):
             return {"response": response_text, "mode": "rag"}
         else:
             # Legacy path: direct Gemini call with page context only
-            import google.generativeai as genai
-            from google.generativeai.types import HarmCategory, HarmBlockThreshold
+            from google import genai
+            from google.genai import types
 
-            genai.configure(api_key=api_key)
+            client = genai.Client(api_key=api_key)
 
-            model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
-                system_instruction=(
-                    "You are an expert financial and economic analyst embedded inside the EcoEye2 "
-                    "Purchasing-Power-Aware Financial Reporting Application. "
-                    "Your job is to analyze the data and charts provided to you in the context, and answer the user's questions clearly, professionally, and concisely. "
-                    "When analyzing data, highlight key trends, anomalies, and the true economic profit or purchasing power impacts. "
-                    "Use Markdown formatting for your responses. Keep responses brief but insightful."
-                ),
+            system_instruction = (
+                "You are an expert financial and economic analyst embedded inside the EcoEye2 "
+                "Purchasing-Power-Aware Financial Reporting Application. "
+                "Your job is to analyze the data and charts provided to you in the context, and answer the user's questions clearly, professionally, and concisely. "
+                "When analyzing data, highlight key trends, anomalies, and the true economic profit or purchasing power impacts. "
+                "Use Markdown formatting for your responses. Keep responses brief but insightful."
             )
 
             prompt = f"User Message:\n{request.message}\n\n"
             if request.context:
                 prompt += f"Application Context (Current Data/Charts on Screen):\n{request.context}\n"
 
-            response = model.generate_content(
-                prompt,
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                },
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                ),
             )
             return {"response": response.text, "mode": "direct"}
 

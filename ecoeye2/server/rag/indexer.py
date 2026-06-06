@@ -4,7 +4,7 @@ RAG Indexer for EcoEye2.
 Reads every relevant table from the SQLite database, generates
 natural-language summary chunks (monthly aggregates, per-dimension
 breakdowns, economic indicator narratives, derived metrics), embeds
-them with Google Gemini's text-embedding-004 model, and stores them
+them with Google Gemini's gemini-embedding-001 model, and stores them
 in a persistent ChromaDB collection.
 """
 
@@ -29,34 +29,59 @@ CHROMA_DIR = PROJECT_ROOT / "db" / "chroma"
 COLLECTION_NAME = "ecoeye2_financial"
 
 # ---------------------------------------------------------------------------
-# Embedding helper (Gemini text-embedding-004)
+# Embedding helper (Gemini gemini-embedding-001)
 # ---------------------------------------------------------------------------
 
-def _embed_texts(texts: list[str], api_key: str) -> list[list[float]]:
-    """Embed a list of texts using the Gemini embedding model."""
-    import google.generativeai as genai
+EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_DIM = 3072
 
-    genai.configure(api_key=api_key)
+def _embed_texts(texts: list[str], api_key: str) -> list[list[float]]:
+    """Embed a list of texts using the Gemini embedding model.
+
+    Retries each batch up to 3 times with exponential backoff when
+    hitting rate limits (429).
+    """
+    from google import genai
+
+    client = genai.Client(api_key=api_key)
     embeddings: list[list[float]] = []
 
-    # Batch in groups of 100 to avoid rate limits
     batch_size = 100
+    max_retries = 3
+
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        try:
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=batch,
-                task_type="retrieval_document",
-            )
-            embeddings.extend(result["embedding"])
-        except Exception as e:
-            logger.error("Embedding batch %d failed: %s", i, e)
-            # Fallback: zero vectors so we don't break the index
-            embeddings.extend([[0.0] * 768] * len(batch))
-        # Small delay to respect rate limits
+        success = False
+
+        for attempt in range(max_retries + 1):
+            try:
+                result = client.models.embed_content(
+                    model=EMBEDDING_MODEL,
+                    contents=batch,
+                )
+                embeddings.extend([e.values for e in result.embeddings])
+                success = True
+                break
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    wait = min(35 * (2 ** attempt), 120)  # 35s, 70s, 120s
+                    logger.warning(
+                        "Rate limited on batch %d (attempt %d/%d), retrying in %ds…",
+                        i, attempt + 1, max_retries + 1, wait,
+                    )
+                    time.sleep(wait)
+                else:
+                    logger.error("Embedding batch %d failed: %s", i, e)
+                    break  # non-retriable error
+
+        if not success:
+            logger.error("Embedding batch %d exhausted retries — using zero vectors", i)
+            embeddings.extend([[0.0] * EMBEDDING_DIM] * len(batch))
+
+        # Delay between batches to stay under rate limits
         if i + batch_size < len(texts):
-            time.sleep(0.5)
+            time.sleep(2)
 
     return embeddings
 
@@ -359,13 +384,16 @@ def _generate_balance_sheet_chunks(conn: sqlite3.Connection) -> list[dict[str, s
         if rows:
             total_col = "total_g_n_ral" if "total_g_n_ral" in cols else None
             if total_col:
-                for r in rows:
+                for idx, r in enumerate(rows):
                     row_dict = dict(zip(cols, r))
                     name = row_dict.get("name", "Unknown")
-                    total = float(row_dict.get(total_col) or 0)
+                    try:
+                        total = float(row_dict.get(total_col) or 0)
+                    except (ValueError, TypeError):
+                        continue  # skip summary/header rows with non-numeric totals
                     if total > 0:
                         text = f"Client '{name}' has total receivables of {total:,.0f} MAD in the aging report."
-                        chunks.append({"id": f"client_{name}", "text": text, "type": "clients_aging", "table": "clients"})
+                        chunks.append({"id": f"client_{name}_{idx}", "text": text, "type": "clients_aging", "table": "clients"})
 
     # Suppliers aging
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers'")
@@ -377,13 +405,16 @@ def _generate_balance_sheet_chunks(conn: sqlite3.Connection) -> list[dict[str, s
         if rows:
             total_col = "total_g_n_ral" if "total_g_n_ral" in cols else None
             if total_col:
-                for r in rows:
+                for idx, r in enumerate(rows):
                     row_dict = dict(zip(cols, r))
                     name = row_dict.get("name", "Unknown")
-                    total = float(row_dict.get(total_col) or 0)
+                    try:
+                        total = float(row_dict.get(total_col) or 0)
+                    except (ValueError, TypeError):
+                        continue  # skip summary/header rows with non-numeric totals
                     if total > 0:
                         text = f"Supplier '{name}' has total payables of {total:,.0f} MAD in the aging report."
-                        chunks.append({"id": f"supplier_{name}", "text": text, "type": "suppliers_aging", "table": "suppliers"})
+                        chunks.append({"id": f"supplier_{name}_{idx}", "text": text, "type": "suppliers_aging", "table": "suppliers"})
 
     return chunks
 

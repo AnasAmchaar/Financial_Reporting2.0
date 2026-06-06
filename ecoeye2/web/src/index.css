@@ -1,53 +1,168 @@
 @import "tailwindcss";
 
+/* ── Typography ─────────────────────────────────────────────────────── */
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background:
-    radial-gradient(80rem 60rem at 100% -10%, rgba(16, 185, 129, 0.15), transparent 45%),
-    radial-gradient(80rem 60rem at 0% 120%, rgba(56, 189, 248, 0.12), transparent 40%),
+    radial-gradient(80rem 60rem at 100% -10%, rgba(16, 185, 129, 0.12), transparent 45%),
+    radial-gradient(80rem 60rem at 0% 120%, rgba(56, 189, 248, 0.08), transparent 40%),
     #020617;
   @apply text-slate-100 antialiased;
+  letter-spacing: -0.01em;
 }
 
 #root {
   @apply min-h-screen;
 }
 
+/* ── Card system ────────────────────────────────────────────────────── */
 .app-card {
-  @apply rounded-2xl border border-slate-800/90 bg-slate-900/55 backdrop-blur-sm;
-  box-shadow: 0 20px 60px -35px rgba(16, 185, 129, 0.3);
+  @apply rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-md;
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.04),
+    0 20px 60px -20px rgba(0, 0, 0, 0.5),
+    0 4px 20px -4px rgba(16, 185, 129, 0.08);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
+.app-card:hover {
+  border-color: rgba(100, 116, 139, 0.3);
+}
+
+/* ── Typography tokens ──────────────────────────────────────────────── */
 .section-title {
-  @apply text-3xl font-semibold tracking-tight text-white;
+  @apply text-3xl font-bold tracking-tight text-white;
+  letter-spacing: -0.025em;
 }
 
 .section-subtitle {
-  @apply text-sm text-slate-400;
+  @apply text-sm leading-relaxed text-slate-400;
 }
 
+/* ── Form elements ──────────────────────────────────────────────────── */
 .app-input {
-  @apply w-full rounded-lg border border-slate-700 bg-slate-950/85 px-3 py-2 text-sm text-slate-100 outline-none ring-emerald-500/40 transition placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2;
+  @apply w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-3.5 py-2.5 text-sm text-slate-100 outline-none ring-emerald-500/40 transition placeholder:text-slate-500 focus:border-emerald-500/70 focus:ring-2;
 }
 
 .btn-primary {
-  @apply rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 transition-all hover:bg-emerald-500 hover:shadow-emerald-800/40 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply rounded-xl border border-slate-700/80 bg-slate-800/80 px-5 py-2.5 text-sm font-medium text-slate-200 transition-all hover:border-slate-500 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+.btn-danger {
+  @apply rounded-xl bg-red-600/90 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-900/30 transition-all hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────── */
 .badge-muted {
-  @apply rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-slate-400;
+  @apply rounded-full border border-slate-700/80 bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-400;
 }
 
+.badge-success {
+  @apply rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400;
+}
+
+.badge-warning {
+  @apply rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-400;
+}
+
+.badge-danger {
+  @apply rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-400;
+}
+
+/* ── Banners ────────────────────────────────────────────────────────── */
 .banner-success {
-  @apply rounded-xl border border-emerald-500/40 bg-emerald-950/50 px-4 py-3 text-sm text-emerald-100;
+  @apply rounded-xl border border-emerald-500/30 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100;
 }
 
 .banner-error {
-  @apply rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-100;
+  @apply rounded-xl border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm text-red-100;
+}
+
+/* ── Polished table ─────────────────────────────────────────────────── */
+.app-table {
+  @apply w-full min-w-max border-collapse text-left text-[13px];
+}
+
+.app-table thead tr {
+  @apply border-b border-slate-700/80 bg-slate-800/50;
+}
+
+.app-table thead th {
+  @apply px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400;
+}
+
+.app-table tbody tr {
+  @apply border-b border-slate-800/50 transition-colors;
+}
+
+.app-table tbody tr:hover {
+  @apply bg-slate-800/30;
+}
+
+.app-table tbody td {
+  @apply px-3 py-2 text-slate-300;
+}
+
+.app-table tbody tr:nth-child(even) {
+  @apply bg-slate-900/30;
+}
+
+/* ── Sidebar nav ────────────────────────────────────────────────────── */
+.nav-item {
+  @apply relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200;
+}
+
+.nav-item.active {
+  @apply bg-emerald-500/12 text-emerald-400;
+}
+
+.nav-item.active::before {
+  content: '';
+  @apply absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-500;
+}
+
+.nav-item:not(.active) {
+  @apply text-slate-400;
+}
+
+.nav-item:not(.active):hover {
+  @apply bg-slate-800/60 text-slate-200;
+}
+
+/* ── Loading skeleton ───────────────────────────────────────────────── */
+.skeleton-pulse {
+  @apply animate-pulse rounded-lg bg-slate-800/60;
+}
+
+/* ── KPI stat card ──────────────────────────────────────────────────── */
+.stat-label {
+  @apply text-[11px] font-semibold uppercase tracking-wider text-slate-500;
+}
+
+.stat-value {
+  @apply mt-1 text-xl font-bold text-white tabular-nums;
+}
+
+/* ── Smooth scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-700/60;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
 }

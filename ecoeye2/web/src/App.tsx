@@ -5,6 +5,7 @@ import { DataPage } from './pages/DataPage'
 import { ForecastPage } from './pages/ForecastPage'
 import { IngestPage } from './pages/IngestPage'
 import { InsightsPage } from './pages/InsightsPage'
+import { OutliersPage } from './pages/OutliersPage'
 import { ReportPage } from './pages/ReportPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { VisualizePage } from './pages/VisualizePage'
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/report" element={<ReportPage />} />
           <Route path="/ingest" element={<IngestPage />} />
           <Route path="/data" element={<DataPage />} />
+          <Route path="/outliers" element={<OutliersPage />} />
           <Route path="/adjustments" element={<AdjustmentsPage />} />
           <Route path="/visualize" element={<VisualizePage />} />
           <Route path="/forecast" element={<ForecastPage />} />
@@ -29,3 +31,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
