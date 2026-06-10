@@ -22,6 +22,7 @@ export function ChatBot() {
   const [isLoading, setIsLoading] = useState(false)
   const [useRag, setUseRag] = useState(true)
   const [isReindexing, setIsReindexing] = useState(false)
+  const [provider, setProvider] = useState<string>('googlegenai')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -31,6 +32,13 @@ export function ChatBot() {
   useEffect(() => {
     if (isOpen) scrollToBottom()
   }, [messages, isOpen])
+
+  // Fetch the active provider on mount
+  useEffect(() => {
+    apiFetch<{ active: string }>('/api/v1/ai/provider')
+      .then((res) => setProvider(res.active))
+      .catch(() => {})
+  }, [])
 
   const handleSend = async () => {
     if (!input.trim()) return
@@ -48,7 +56,7 @@ export function ChatBot() {
         use_rag: useRag
       }
 
-      const res = await apiFetch<{ response: string; mode?: string }>('/api/v1/ai/chat', {
+      const res = await apiFetch<{ response: string; mode?: string; provider?: string }>('/api/v1/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,6 +64,7 @@ export function ChatBot() {
         body: JSON.stringify(payload)
       })
 
+      if (res.provider) setProvider(res.provider)
       setMessages((prev) => [...prev, { role: 'ai', content: res.response }])
     } catch (e: any) {
       setMessages((prev) => [...prev, { role: 'ai', content: `**Error:** ${e.message || 'Failed to communicate with AI.'}` }])
@@ -86,6 +95,9 @@ export function ChatBot() {
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${useRag ? 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`} />
               <h3 className="text-slate-200 font-semibold text-sm tracking-wide">EcoEye2 AI Analyst</h3>
+              <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-700/60 text-slate-400 border border-slate-600/30">
+                via {provider === 'groq' ? 'Groq' : 'Gemini'}
+              </span>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-200">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>

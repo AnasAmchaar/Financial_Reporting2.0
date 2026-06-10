@@ -35,8 +35,24 @@ def build_deflator_series(
     value_col: str = "value",
 ) -> pd.Series:
     """
-    Return a Series indexed by month-start `date` with deflator D(t) = index_base / index_t.
-    Nominal * D = real in base-period prices.
+    Return a Series indexed by month-start ``date`` with deflator D(t).
+
+    Formula
+    -------
+    D(t) = index_base / index_t
+
+    Interpretation
+    --------------
+    - For dates **before** the base period: index_t < index_base, so D(t) > 1.
+      ``real = nominal × D`` will be **higher** than nominal.  This is correct:
+      1 MAD in the past bought more goods than 1 MAD at the base period, so the
+      real (constant-price) value must be inflated upward.
+    - For dates **after** the base period: index_t > index_base, so D(t) < 1.
+      ``real = nominal × D`` will be **lower** than nominal, reflecting erosion
+      of purchasing power due to inflation.
+    - At the base period itself: D = 1, so real == nominal.
+
+    This follows standard national-accounts methodology (e.g. World Bank, HCP).
     """
     if indicator_df.empty:
         return pd.Series(dtype="float64")

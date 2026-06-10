@@ -25,7 +25,7 @@ type PredictionPoint = {
 type ForecastResponse = {
   historical: { period: string; amount: number; amount_real?: number }[]
   predictions: PredictionPoint[]
-  metrics: Record<string, number>
+  metrics: Record<string, any>
   feature_importances: { feature: string; importance: number }[]
   model_info: Record<string, string>
 }

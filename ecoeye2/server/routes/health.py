@@ -25,6 +25,8 @@ def settings_preview():
 
 @router.get("/health")
 def health():
+    from ecoeye2.server.rag.llm_provider import get_active_provider
+
     return {
         "app": "EcoEye2",
         "status": "ok",
@@ -33,6 +35,9 @@ def health():
         "project_root": str(PROJECT_ROOT),
         "fred_api_key_set": bool(os.environ.get("FRED_API_KEY", "").strip()),
         "ecoeye2_api_key_set": bool(os.environ.get("ECOEYE2_API_KEY", "").strip()),
+        "gemini_api_key_set": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
+        "groq_api_key_set": bool(os.environ.get("GROQ_API_KEY", "").strip()),
+        "ai_provider": get_active_provider(),
     }
 
 

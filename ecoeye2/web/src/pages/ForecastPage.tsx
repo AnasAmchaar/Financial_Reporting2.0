@@ -11,6 +11,9 @@ import {
   XAxis,
   YAxis,
   BarChart,
+  Cell,
+  LineChart,
+  ReferenceLine,
 } from 'recharts'
 import ReactMarkdown from 'react-markdown'
 import { apiFetch } from '../lib/api'
@@ -37,7 +40,28 @@ type FeatureImportance = {
 type ForecastResponse = {
   historical: HistoricalPoint[]
   predictions: PredictionPoint[]
-  metrics: Record<string, number>
+  metrics: {
+    mae: number
+    rmse: number
+    r2: number
+    n_train: number
+    horizon: number
+    cv_folds?: {
+      fold: number
+      train_size: number
+      test_size: number
+      mae: number
+      rmse: number
+      r2: number
+    }[]
+    cv_predictions?: {
+      fold: number
+      period: string
+      actual: number
+      predicted: number
+      residual: number
+    }[]
+  }
   feature_importances: FeatureImportance[]
   model_info: Record<string, string>
 }
@@ -60,6 +84,7 @@ export function ForecastPage() {
   const [forecastData, setForecastData] = useState<ForecastResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [err, setErr] = useState('')
+  const [evalTab, setEvalTab] = useState<'summary' | 'cv_folds' | 'val_fit' | 'residuals' | 'features'>('summary')
 
   // AI interpretation
   const [aiInterpretation, setAiInterpretation] = useState('')
@@ -429,104 +454,381 @@ Be concise, data-driven, and use specific numbers from the forecast.`
         </div>
       )}
 
-      {/* Model Metrics + Feature Importance */}
+      {/* Model Evaluation Dashboard */}
       {forecastData && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Model Performance */}
-          <div className="app-card p-5 border-slate-800">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-800 pb-2">
-              Model Performance (Cross-Validated)
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-black text-violet-300">
-                  {forecastData.metrics.r2 != null ? forecastData.metrics.r2.toFixed(3) : '—'}
-                </div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">R² Score</div>
-                <div className="mt-2 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.max(0, Math.min(100, (forecastData.metrics.r2 ?? 0) * 100))}%`,
-                      background: (forecastData.metrics.r2 ?? 0) > 0.7 ? '#10b981' : (forecastData.metrics.r2 ?? 0) > 0.4 ? '#f59e0b' : '#ef4444',
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black text-sky-300">
-                  {fmt(forecastData.metrics.mae)}
-                </div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">MAE (MAD)</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black text-amber-300">
-                  {fmt(forecastData.metrics.rmse)}
-                </div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">RMSE (MAD)</div>
-              </div>
+        <div className="app-card p-6 border-slate-800 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-4 gap-4">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-violet-300">
+                Model Evaluation & Diagnostic Dashboard
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Analyze model accuracy, stability across folds, feature drivers, and prediction errors.
+              </p>
             </div>
+            {/* Tab Buttons */}
+            <div className="flex flex-wrap gap-1.5 bg-slate-900/60 p-1 rounded-xl border border-slate-800">
+              {[
+                { id: 'summary', label: 'Overview' },
+                { id: 'cv_folds', label: 'CV Folds' },
+                { id: 'val_fit', label: 'Validation Fit' },
+                { id: 'residuals', label: 'Residuals' },
+                { id: 'features', label: 'Drivers' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setEvalTab(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                    evalTab === tab.id
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-600/10'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-800/60">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Model Architecture</div>
-              <div className="space-y-1.5 text-xs text-slate-400">
-                {Object.entries(forecastData.model_info).map(([k, v]) => (
-                  <div key={k} className="flex justify-between">
-                    <span className="text-slate-500 capitalize">{k.replace(/_/g, ' ')}</span>
-                    <span className="text-slate-300 font-mono text-[11px] text-right max-w-[60%] truncate">{v}</span>
+          {/* TAB 1: OVERVIEW SUMMARY */}
+          {evalTab === 'summary' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 text-center relative overflow-hidden group hover:border-violet-500/30 transition-all duration-300">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-indigo-500" />
+                  <div className="text-3xl font-black text-violet-300">
+                    {forecastData.metrics.r2 != null ? forecastData.metrics.r2.toFixed(3) : '—'}
                   </div>
-                ))}
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1.5 font-bold">R² Score (Accuracy)</div>
+                  <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                    Proportion of variance explained by model. Closer to 1.0 indicates high predictive power.
+                  </p>
+                  <div className="mt-3 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, (forecastData.metrics.r2 ?? 0) * 100))}%`,
+                        background: (forecastData.metrics.r2 ?? 0) > 0.7 ? '#10b981' : (forecastData.metrics.r2 ?? 0) > 0.4 ? '#f59e0b' : '#ef4444',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 text-center relative overflow-hidden group hover:border-sky-500/30 transition-all duration-300">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-teal-500" />
+                  <div className="text-3xl font-black text-sky-300">
+                    {fmt(forecastData.metrics.mae)}
+                  </div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1.5 font-bold">Mean Absolute Error</div>
+                  <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                    Average absolute prediction error in MAD. Directly measures how far off predictions are on average.
+                  </p>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 text-center relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+                  <div className="text-3xl font-black text-amber-300">
+                    {fmt(forecastData.metrics.rmse)}
+                  </div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1.5 font-bold">Root Mean Squared Error</div>
+                  <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                    Standard deviation of residuals. penalizes larger errors more heavily.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="bg-slate-900/20 border border-slate-800 rounded-xl p-5">
+                  <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold mb-3">Model & Ensemble Composition</div>
+                  <div className="space-y-2.5 text-xs">
+                    {Object.entries(forecastData.model_info).map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-start border-b border-slate-800/40 pb-2">
+                        <span className="text-slate-500 capitalize">{k.replace(/_/g, ' ')}</span>
+                        <span className="text-slate-300 font-mono text-[11px] text-right max-w-[70%] leading-relaxed">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/20 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                  <div>
+                    <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold mb-3">Evaluation Metadata</div>
+                    <div className="space-y-3 text-xs text-slate-400">
+                      <div className="flex justify-between">
+                        <span>Training Observations:</span>
+                        <span className="text-white font-semibold">{forecastData.metrics.n_train} months</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Cross-Validation splits:</span>
+                        <span className="text-white font-semibold">{forecastData.metrics.cv_folds?.length || 0} folds</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Forecast Horizon:</span>
+                        <span className="text-white font-semibold">{forecastData.metrics.horizon} months</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Evaluation Strategy:</span>
+                        <span className="text-violet-400 font-semibold font-mono text-[11px]">Expanding Window TimeSeriesSplit</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-800/60 text-[10px] text-slate-500 leading-relaxed">
+                    💡 <strong>Insight:</strong> The metrics above represent average out-of-fold performance across rolling cross-validation splits, providing a realistic estimate of real-world generalization.
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="mt-4 text-[10px] text-slate-600">
-              Training samples: {forecastData.metrics.n_train} • Forecast horizon: {forecastData.metrics.horizon} months
+          {/* TAB 2: CROSS-VALIDATION FOLDS */}
+          {evalTab === 'cv_folds' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="bg-slate-900/20 border border-slate-800 rounded-xl p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Validation Scores per Cross-Validation Fold
+                  </h3>
+                  <span className="text-[10px] text-slate-500">Left axis = MAE/RMSE (MAD) • Right axis = R² Score</span>
+                </div>
+                {forecastData.metrics.cv_folds && forecastData.metrics.cv_folds.length > 0 ? (
+                  <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart
+                        data={forecastData.metrics.cv_folds.map(f => ({
+                          ...f,
+                          name: `Fold ${f.fold}`,
+                        }))}
+                        margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} />
+                        <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 10 }} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} domain={[0, 1]} />
+                        <Tooltip
+                          contentStyle={{ background: '#090d16', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                          formatter={(value: any, name: string) => {
+                            if (name === 'R²') return [value.toFixed(3), name]
+                            return [fmt(value) + ' MAD', name]
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '10px' }} />
+                        <Bar yAxisId="left" dataKey="mae" name="MAE" fill="#38bdf8" fillOpacity={0.8} maxBarSize={25} radius={[4, 4, 0, 0]} />
+                        <Bar yAxisId="left" dataKey="rmse" name="RMSE" fill="#f59e0b" fillOpacity={0.8} maxBarSize={25} radius={[4, 4, 0, 0]} />
+                        <Line yAxisId="right" type="monotone" dataKey="r2" name="R²" stroke="#a78bfa" strokeWidth={2.5} dot={{ r: 4, fill: '#a78bfa' }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[200px] text-slate-600 text-xs">
+                    No CV fold data available
+                  </div>
+                )}
+              </div>
+
+              {/* CV Folds Table */}
+              {forecastData.metrics.cv_folds && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="text-slate-500 border-b border-slate-800">
+                        <th className="py-2 font-semibold">Split Fold</th>
+                        <th className="py-2 font-semibold text-right">Train Size (Obs)</th>
+                        <th className="py-2 font-semibold text-right">Test Size (Obs)</th>
+                        <th className="py-2 font-semibold text-right text-sky-400">MAE (MAD)</th>
+                        <th className="py-2 font-semibold text-right text-amber-400">RMSE (MAD)</th>
+                        <th className="py-2 font-semibold text-right text-violet-400">R² Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40">
+                      {forecastData.metrics.cv_folds.map((f, idx) => (
+                        <tr key={idx} className="text-slate-300 hover:bg-slate-800/20">
+                          <td className="py-2 font-medium text-white">Fold {f.fold}</td>
+                          <td className="py-2 text-right font-mono">{f.train_size}m</td>
+                          <td className="py-2 text-right font-mono">{f.test_size}m</td>
+                          <td className="py-2 text-right font-mono text-sky-300">{fmt(f.mae)}</td>
+                          <td className="py-2 text-right font-mono text-amber-300">{fmt(f.rmse)}</td>
+                          <td className="py-2 text-right font-mono text-violet-300">{f.r2.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Feature Importance */}
-          <div className="app-card p-5 border-slate-800">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-800 pb-2">
-              Feature Importance — What Drives the Forecast
-            </h3>
-            {forecastData.feature_importances.length > 0 ? (
-              <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={forecastData.feature_importances.map(f => ({
-                      ...f,
-                      label: featureLabels[f.feature] || f.feature,
-                      pct: Math.round(f.importance * 100),
-                    }))}
-                    layout="vertical"
-                    margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} domain={[0, 'auto']} />
-                    <YAxis
-                      type="category"
-                      dataKey="label"
-                      tick={{ fill: '#94a3b8', fontSize: 10 }}
-                      width={110}
-                    />
-                    <Tooltip
-                      contentStyle={{ background: '#090d16', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
-                      formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, 'Importance']}
-                    />
-                    <Bar dataKey="importance" fill="#8b5cf6" fillOpacity={0.8} maxBarSize={20} radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+          {/* TAB 3: VALIDATION FIT */}
+          {evalTab === 'val_fit' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="bg-slate-900/20 border border-slate-800 rounded-xl p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Validation Fit: Actuals vs. Out-of-Fold predictions
+                  </h3>
+                  <span className="text-[10px] text-slate-500">Plot of predictions made on unseen validation folds during cross-validation</span>
+                </div>
+                {forecastData.metrics.cv_predictions && forecastData.metrics.cv_predictions.length > 0 ? (
+                  <div className="h-[280px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={forecastData.metrics.cv_predictions.slice().sort((a, b) => a.period.localeCompare(b.period))}
+                        margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="period" tick={{ fill: '#64748b', fontSize: 9 }} />
+                        <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#090d16', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                          formatter={(value: any, name: string) => [fmt(value) + ' MAD', name]}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '10px' }} />
+                        <Line type="monotone" dataKey="actual" name="Actual Amount" stroke="#38bdf8" strokeWidth={2} dot={{ r: 2 }} />
+                        <Line type="monotone" dataKey="predicted" name="Validation Predict" stroke="#a78bfa" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 2 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[200px] text-slate-600 text-xs">
+                    No validation predictions available
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="flex items-center justify-center h-[250px] text-slate-600 text-xs">
-                No feature importance data available
+              <p className="text-xs text-slate-500 leading-relaxed px-1">
+                💡 <strong>How to read this chart:</strong> Unlike a standard training fit chart which shows how well the model memorized the past, this chart evaluates the model on periods it was <em>never trained on</em> during cross-validation. A tight alignment indicates a well-regularized model that generalizes well to future data.
+              </p>
+            </div>
+          )}
+
+          {/* TAB 4: RESIDUALS */}
+          {evalTab === 'residuals' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="bg-slate-900/20 border border-slate-800 rounded-xl p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Prediction Residuals over Validation Periods
+                  </h3>
+                  <span className="text-[10px] text-slate-500">Residual = Actual - Predicted • Bars above zero indicate underpredictions; below zero are overpredictions</span>
+                </div>
+                {forecastData.metrics.cv_predictions && forecastData.metrics.cv_predictions.length > 0 ? (
+                  <div className="h-[280px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={forecastData.metrics.cv_predictions.slice().sort((a, b) => a.period.localeCompare(b.period))}
+                        margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="period" tick={{ fill: '#64748b', fontSize: 9 }} />
+                        <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#090d16', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                          formatter={(value: any, name: string) => [fmt(value) + ' MAD', name]}
+                        />
+                        <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5} />
+                        <Bar dataKey="residual" name="Error (Residual)">
+                          {forecastData.metrics.cv_predictions
+                            .slice()
+                            .sort((a, b) => a.period.localeCompare(b.period))
+                            .map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.residual >= 0 ? '#10b981' : '#f43f5e'}
+                                fillOpacity={0.75}
+                              />
+                            ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[200px] text-slate-600 text-xs">
+                    No validation predictions available
+                  </div>
+                )}
               </div>
-            )}
-            <p className="mt-3 text-[10px] text-slate-500 border-t border-slate-800/60 pt-3">
-              Shows which input variables most influence the model's predictions.
-              Higher importance means the model relies more on that feature for accuracy.
-            </p>
-          </div>
+              <div className="grid gap-4 sm:grid-cols-2 text-xs text-slate-400">
+                <div className="bg-slate-900/30 border border-slate-800 p-4 rounded-lg">
+                  <div className="font-semibold text-slate-300 uppercase text-[10px] tracking-wider mb-1">Error Statistics</div>
+                  <ul className="space-y-1.5 list-disc pl-4 mt-2">
+                    <li>Mean Residual (Bias):{' '}
+                      <span className="font-mono text-white">
+                        {fmt(
+                          forecastData.metrics.cv_predictions.reduce((acc, p) => acc + p.residual, 0) /
+                            forecastData.metrics.cv_predictions.length
+                        )}{' '}
+                        MAD
+                      </span>
+                    </li>
+                    <li>Max Overprediction:{' '}
+                      <span className="font-mono text-rose-400 font-semibold">
+                        {fmt(Math.min(...forecastData.metrics.cv_predictions.map(p => p.residual)))} MAD
+                      </span>
+                    </li>
+                    <li>Max Underprediction:{' '}
+                      <span className="font-mono text-emerald-400 font-semibold">
+                        {fmt(Math.max(...forecastData.metrics.cv_predictions.map(p => p.residual)))} MAD
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="bg-slate-900/30 border border-slate-800 p-4 rounded-lg flex flex-col justify-between">
+                  <div>
+                    <div className="font-semibold text-slate-300 uppercase text-[10px] tracking-wider mb-1">Residual Analysis Guideline</div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                      Ideally, residuals should be randomly distributed around the zero line without obvious patterns.
+                      Recurring positive error patterns indicate seasonal spikes the model is underestimating.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: DRIVERS (FEATURE IMPORTANCE) */}
+          {evalTab === 'features' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="bg-slate-900/20 border border-slate-800 rounded-xl p-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-4">
+                  Feature Importance — Relative Weight of Forecast Inputs
+                </h3>
+                {forecastData.feature_importances.length > 0 ? (
+                  <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={forecastData.feature_importances.map(f => ({
+                          ...f,
+                          label: featureLabels[f.feature] || f.feature,
+                          pct: Math.round(f.importance * 100),
+                        }))}
+                        layout="vertical"
+                        margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} domain={[0, 'auto']} />
+                        <YAxis
+                          type="category"
+                          dataKey="label"
+                          tick={{ fill: '#94a3b8', fontSize: 10 }}
+                          width={120}
+                        />
+                        <Tooltip
+                          contentStyle={{ background: '#090d16', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                          formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, 'Importance']}
+                        />
+                        <Bar dataKey="importance" fill="#8b5cf6" fillOpacity={0.8} maxBarSize={20} radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[200px] text-slate-600 text-xs">
+                    No feature importance data available
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed px-1">
+                This shows which historical inputs (like seasonal cycles, overall trend, inflation indexes, or BAM bank rates) the ensemble tree models relied on most heavily to formulate the forecast.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

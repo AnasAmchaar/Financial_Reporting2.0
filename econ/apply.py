@@ -200,15 +200,19 @@ def apply_all() -> None:
                 df_rev = apply_deflator(df[rev_mask].copy(), value_col, "date", cpi_def, base_period=BASE_PERIOD, deflator_col_name="cpi_deflator")
                 df_cost = apply_deflator(df[~rev_mask].copy(), value_col, "date", ppi_def, base_period=BASE_PERIOD, deflator_col_name="ppi_deflator")
                 
-                # We need to unify the real amount column name, usually it is `{value_col}_real_{suffix}`
-                # We'll let apply_deflator do its thing, then combine
                 suffix = BASE_PERIOD.replace("-", "_")
                 real_col = f"{value_col}_real_{suffix}"
                 
-                # In df_rev, the deflator is cpi_deflator. In df_cost, it's ppi_deflator.
-                # Let's map both back to a common 'avg_deflator' or just keep them separate
-                df_rev["cpi_deflator"] = df_rev["cpi_deflator"]
-                df_cost["ppi_deflator"] = df_cost["ppi_deflator"]
+                # Tag which deflator was used for each row
+                df_rev["deflator_type"] = "cpi"
+                df_cost["deflator_type"] = "ppi"
+                
+                # Fill missing cross-deflator columns with 1.0 (neutral)
+                # so downstream queries always find non-null values
+                if "ppi_deflator" not in df_rev.columns:
+                    df_rev["ppi_deflator"] = 1.0
+                if "cpi_deflator" not in df_cost.columns:
+                    df_cost["cpi_deflator"] = 1.0
                 
                 df = pd.concat([df_rev, df_cost], ignore_index=True)
             else:

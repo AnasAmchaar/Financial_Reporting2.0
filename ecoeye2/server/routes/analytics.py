@@ -88,23 +88,37 @@ def analytics_series(
             points = [{"period": r["grp"], "nominal": None, "real": r["real_value"]} for r in cur]
             return {"table": table, "mode": mode, "group_by": group_by, "points": points}
 
-        sql = f"""
-            SELECT {gb_m} AS grp,
-                   SUM(m.amount) AS nominal,
-                   SUM(r.{rcq}) AS real_value
+        # Mode "both": independent queries to avoid join fan-out from duplicate keys
+        nom_sql = f"""
+            SELECT {gb_m} AS grp, SUM(m.amount) AS nominal
             FROM {tq} m
-            LEFT JOIN {rtq} r ON date(m.date) = date(r.date)
-                AND m.partner = r.partner AND m.channel = r.channel
-                AND COALESCE(m.brand, '') = COALESCE(r.brand, '')
-                AND COALESCE(m.machine, '') = COALESCE(r.machine, '')
             WHERE m.date IS NOT NULL
             GROUP BY {gb_m}
             ORDER BY {gb_m}
         """
-        cur = conn.execute(sql)
+        nom_map = {}
+        for r in conn.execute(nom_sql):
+            nom_map[r["grp"]] = float(r["nominal"] or 0)
+
+        real_sql = f"""
+            SELECT {gb_r} AS grp, SUM(r.{rcq}) AS real_value
+            FROM {rtq} r
+            WHERE r.date IS NOT NULL
+            GROUP BY {gb_r}
+            ORDER BY {gb_r}
+        """
+        real_map = {}
+        for r in conn.execute(real_sql):
+            real_map[r["grp"]] = float(r["real_value"] or 0)
+
+        all_keys = sorted(set(nom_map.keys()) | set(real_map.keys()))
         points = [
-            {"period": r["grp"], "nominal": r["nominal"], "real": r["real_value"]}
-            for r in cur.fetchall()
+            {
+                "period": k,
+                "nominal": nom_map.get(k),
+                "real": real_map.get(k),
+            }
+            for k in all_keys
         ]
         return {"table": table, "mode": mode, "group_by": group_by, "points": points}
     finally:

@@ -323,7 +323,11 @@ def train_and_predict(
     # 6. CV metrics (time-series split) ----------------------------------------
     tscv = TimeSeriesSplit(n_splits=min(3, len(y) // 3))
     cv_mae, cv_rmse, cv_r2 = [], [], []
-    for train_idx, test_idx in tscv.split(X):
+    cv_folds = []
+    cv_predictions = []
+    periods = df["period"].dt.strftime("%Y-%m").tolist()
+
+    for fold_idx, (train_idx, test_idx) in enumerate(tscv.split(X)):
         X_tr, X_te = X[train_idx], X[test_idx]
         y_tr, y_te = y[train_idx], y[test_idx]
         gb_cv = GradientBoostingRegressor(
@@ -331,16 +335,41 @@ def train_and_predict(
         )
         gb_cv.fit(X_tr, y_tr)
         preds = gb_cv.predict(X_te)
-        cv_mae.append(mean_absolute_error(y_te, preds))
-        cv_rmse.append(float(np.sqrt(mean_squared_error(y_te, preds))))
-        cv_r2.append(r2_score(y_te, preds))
+        
+        mae_val = mean_absolute_error(y_te, preds)
+        rmse_val = float(np.sqrt(mean_squared_error(y_te, preds)))
+        r2_val = r2_score(y_te, preds)
+        
+        cv_mae.append(mae_val)
+        cv_rmse.append(rmse_val)
+        cv_r2.append(r2_val)
+        
+        cv_folds.append({
+            "fold": fold_idx + 1,
+            "train_size": len(train_idx),
+            "test_size": len(test_idx),
+            "mae": float(mae_val),
+            "rmse": float(rmse_val),
+            "r2": float(r2_val),
+        })
+        
+        for k, idx in enumerate(test_idx):
+            cv_predictions.append({
+                "fold": fold_idx + 1,
+                "period": periods[idx],
+                "actual": float(y_te[k]),
+                "predicted": float(preds[k]),
+                "residual": float(y_te[k] - preds[k]),
+            })
 
     metrics = {
-        "mae": float(np.mean(cv_mae)),
-        "rmse": float(np.mean(cv_rmse)),
-        "r2": float(np.mean(cv_r2)),
+        "mae": float(np.mean(cv_mae)) if cv_mae else 0.0,
+        "rmse": float(np.mean(cv_rmse)) if cv_rmse else 0.0,
+        "r2": float(np.mean(cv_r2)) if cv_r2 else 0.0,
         "n_train": int(len(y)),
         "horizon": horizon,
+        "cv_folds": cv_folds,
+        "cv_predictions": cv_predictions,
     }
 
     # 7. Feature importances ---------------------------------------------------

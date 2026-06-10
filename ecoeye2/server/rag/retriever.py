@@ -12,7 +12,6 @@ import os
 from typing import Any
 
 from google import genai
-from google.genai import types
 
 from ecoeye2.server.rag.indexer import CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL
 
@@ -97,16 +96,17 @@ def rag_generate(
 ) -> str:
     """
     Full RAG pipeline: retrieve relevant chunks, then generate a grounded
-    response via Gemini.
+    response via the active LLM provider.
     """
-    api_key = api_key or os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return "Error: GEMINI_API_KEY is not configured."
+    from ecoeye2.server.rag.llm_provider import generate_text
 
-    client = genai.Client(api_key=api_key)
+    # Embeddings always need a Gemini key
+    embed_key = api_key or os.environ.get("GEMINI_API_KEY", "").strip()
+    if not embed_key:
+        return "Error: GEMINI_API_KEY is not configured (required for embeddings)."
 
     # 1. Retrieve relevant data chunks
-    chunks = retrieve_chunks(user_message, top_k=top_k, api_key=api_key)
+    chunks = retrieve_chunks(user_message, top_k=top_k, api_key=embed_key)
 
     # 2. Build grounded context
     if chunks:
@@ -153,16 +153,9 @@ def rag_generate(
 
     prompt = "\n".join(prompt_parts)
 
-    # 5. Generate with Gemini
+    # 5. Generate via the active LLM provider
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-            ),
-        )
-        return response.text
+        return generate_text(prompt=prompt, system_instruction=system_instruction)
     except Exception as e:
         logger.error("RAG generation failed: %s", e)
         return f"Error generating response: {str(e)}"

@@ -19,13 +19,23 @@ class ChatRequest(BaseModel):
     use_rag: bool = True
 
 
+class ProviderRequest(BaseModel):
+    provider: str
+
+
 @router.post("/ai/chat")
 async def chat_with_ai(request: ChatRequest):
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    from ecoeye2.server.rag.llm_provider import generate_text, get_active_provider, PROVIDERS
+
+    # Validate that the active provider's API key is set
+    active = get_active_provider()
+    env_var = PROVIDERS[active]["env_key"]
+    api_key = os.environ.get(env_var, "").strip()
     if not api_key:
         raise HTTPException(
             status_code=500,
-            detail="GEMINI_API_KEY is not set in the environment variables. Please set it to use the AI Chatbot.",
+            detail=f"{env_var} is not set in the environment variables. "
+            f"Please set it to use the AI Chatbot with provider '{active}'.",
         )
 
     try:
@@ -37,16 +47,10 @@ async def chat_with_ai(request: ChatRequest):
                 user_message=request.message,
                 page_context=request.context,
                 top_k=8,
-                api_key=api_key,
             )
-            return {"response": response_text, "mode": "rag"}
+            return {"response": response_text, "mode": "rag", "provider": active}
         else:
-            # Legacy path: direct Gemini call with page context only
-            from google import genai
-            from google.genai import types
-
-            client = genai.Client(api_key=api_key)
-
+            # Legacy path: direct LLM call with page context only
             system_instruction = (
                 "You are an expert financial and economic analyst embedded inside the EcoEye2 "
                 "Purchasing-Power-Aware Financial Reporting Application. "
@@ -59,14 +63,11 @@ async def chat_with_ai(request: ChatRequest):
             if request.context:
                 prompt += f"Application Context (Current Data/Charts on Screen):\n{request.context}\n"
 
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                ),
+            response_text = generate_text(
+                prompt=prompt,
+                system_instruction=system_instruction,
             )
-            return {"response": response.text, "mode": "direct"}
+            return {"response": response_text, "mode": "direct", "provider": active}
 
     except Exception as e:
         logger.error(f"Failed to generate AI response: {e}")
@@ -76,6 +77,26 @@ async def chat_with_ai(request: ChatRequest):
         )
 
 
+@router.get("/ai/provider")
+async def get_provider():
+    """Return the active AI provider and all available providers."""
+    from ecoeye2.server.rag.llm_provider import get_provider_status
+
+    return get_provider_status()
+
+
+@router.post("/ai/provider")
+async def set_provider(request: ProviderRequest):
+    """Switch the active AI provider."""
+    from ecoeye2.server.rag.llm_provider import set_active_provider, get_provider_status
+
+    try:
+        set_active_provider(request.provider)
+        return get_provider_status()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/ai/rag/reindex")
 async def rag_reindex():
     """Trigger a full re-index of the RAG vector store."""
@@ -83,7 +104,7 @@ async def rag_reindex():
     if not api_key:
         raise HTTPException(
             status_code=500,
-            detail="GEMINI_API_KEY is not set.",
+            detail="GEMINI_API_KEY is not set (required for embedding).",
         )
 
     try:
