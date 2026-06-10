@@ -4,10 +4,11 @@ A general-purpose ETL pipeline that ingests **any** financial Excel workbook, tr
 
 ## Project Roadmap
 
-1. **ETL Pipeline**
-2. **Economic adjustment layer** (inflation / time-value)
-3. **EcoEye2** (web UI: ingest, edit, adjustments, charts) ← *see below*
-4. AI-powered Analysis
+1. **ETL Pipeline** (Ingest, clean, and normalise heterogeneous spreadsheets)
+2. **Economic Adjustment Layer** (HCP, FRED, and World Bank inflation indexing & present-value discounting)
+3. **EcoEye2 Web UI** (Interactive tables, custom charting, and ETL execution dashboard)
+4. **AI-Powered Diagnostics & Forecasting** (Ensembled ML forecaster + Model Evaluation & Diagnostics dashboard)
+5. **Interactive Chat Assistant** (RAG-supported chat over database records and economic indicators)
 
 ## Quick Start
 
@@ -182,9 +183,47 @@ Each type accepts optional `transform_opts` passed as keyword arguments. For exa
 "transform_opts": {"entity_type": "client"}  # for aging type
 ```
 
-## Tech Stack
+## 🤖 Machine Learning Forecasting & Evaluation
 
-- **Python 3.12** – pandas, openpyxl, requests, beautifulsoup4, pyarrow, FastAPI, uvicorn
-- **React 19 + Vite 8** – EcoEye2 SPA (TanStack Table, Recharts, Tailwind)
-- **SQLite** – lightweight embedded database (`econ_indicators`, `*_real`)
-- **Parquet** – optional columnar snapshots and econ cache
+EcoEye2 features an advanced forecasting engine that predicts financial trends (nominal and real) up to $N$ months into the future.
+
+### 1. Hybrid Ensemble Architecture
+The forecasting engine employs an ensemble model combining two distinct predictive methodologies:
+*   **Gradient Boosting Regressor (`scikit-learn`)**: Captures non-linear interactions, calendar features, and external macroeconomic indicators (CPI, PPI, policy rates).
+*   **Holt-Winters Exponential Smoothing (`statsmodels`)**: Captures strong univariate trends and multi-period seasonality.
+*   **Prediction Formulation**: A weighted average (**70% GBR / 30% HW**) outputs the final prediction.
+*   **Confidence Intervals**: Quantile Gradient Boosting regression models fit to the 10th and 90th percentiles define the upper and lower bands of uncertainty.
+
+### 2. Model Evaluation & Diagnostics Dashboard
+To ensure transparency and trust in ML forecasts, the frontend includes a rich evaluation console:
+*   **Performance Summary**: Key performance metrics ($R^2$, MAE, RMSE) computed via out-of-fold evaluations.
+*   **Cross-Validation Folds**: Tracks metric stability across expanding window folds (`TimeSeriesSplit`).
+*   **Validation Fit**: Plots actual historical values against out-of-fold predictions to evaluate model fit on unseen periods.
+*   **Residuals Analysis**: Visualizes prediction error distributions over time to identify systematic biases.
+*   **Drivers (Feature Importance)**: Identifies which macroeconomic factors or calendar features have the highest predictive weight.
+
+---
+
+## 🛡️ Resilient AI Assistant & Provider Registry
+
+The floating **Chat Assistant** integrates Retrieval-Augmented Generation (RAG) over active database schemas, raw financial tables, and fetched macroeconomic indicators.
+
+### 1. Multi-LLM Provider Switcher
+Users can dynamically swap LLM providers at runtime:
+*   **Google GenAI**: Configured with `gemini-2.5-flash` as primary.
+*   **Groq**: Configured with `llama-3.3-70b-versatile` for high-throughput alternative execution.
+
+### 2. Automatic Failover & High Availability
+To bypass rate limits or high-demand errors (e.g. `503 Service Unavailable`), the Google GenAI provider implements a robust **Fallback Model Registry**:
+1. It attempts execution using the primary model `gemini-2.5-flash`.
+2. On failure, it transparently retries in order: `gemini-2.0-flash` ➔ `gemini-1.5-flash` ➔ `gemini-2.5-pro` ➔ `gemini-1.5-pro`.
+3. Only if all fallback models fail is the exception propagated back to the user.
+
+---
+
+## 🛠️ Tech Stack
+
+*   **Backend**: Python 3.12, FastAPI, Uvicorn, Pandas, Scikit-Learn, Statsmodels, SQLite, PyArrow
+*   **Frontend**: React 19, Vite 8, TypeScript, TailwindCSS, Recharts, TanStack Table
+*   **Containerisation**: Docker, Docker Compose
+*   **LLM Clients**: Google GenAI SDK, Groq API Client

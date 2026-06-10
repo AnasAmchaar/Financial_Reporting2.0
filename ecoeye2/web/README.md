@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# EcoEye2 Frontend Web Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This folder contains the React + TypeScript + Vite web client for the **EcoEye2** financial ETL and economic adjustment platform.
 
-Currently, two official plugins are available:
+## 🚀 Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** with TypeScript
+- **Vite 8** for lightning-fast HMR and bundling
+- **Recharts** for interactive dashboards (nominal vs real, cross-validation evaluation diagnostics, EVA, and VPMF)
+- **TailwindCSS** for UI styling
+- **React Router 6** for routing
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Development Setup
 
-## Expanding the ESLint configuration
+Ensure you have [Node.js](https://nodejs.org/) (v18+) installed.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Install Dependencies
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. Start Dev Server
+```bash
+npm run dev
 ```
+- App runs at: [http://localhost:5173](http://localhost:5173)
+- API requests under `/api/v1/*` are proxied to the backend FastAPI server running at `http://localhost:8000`.
+
+### 3. Production Build
+```bash
+npm run build
+```
+The build command compiles the React SPA and outputs static assets directly into the FastAPI backend static directory (`../server/static/`). This allows FastAPI to serve both the API and the SPA from a single port in production.
+
+---
+
+## 📁 Key Directories & Pages
+
+- **`/src/pages/`**:
+  - `InsightsPage.tsx`: Main dashboard showcasing macro summaries, data quality, and BAM key rate summaries.
+  - `IngestPage.tsx`: File upload interface and raw pipeline extraction executions.
+  - `DataPage.tsx`: Interactive SQLite table editor with full search, sorting, and manual row updates.
+  - `AdjustmentsPage.tsx`: Macro indicator fetching controls and real-value deflation commands.
+  - `VisualizePage.tsx`: Customizable multi-axis charting engine for nominal vs real data comparison.
+  - `ForecastPage.tsx`: ML forecasting page ensembling Gradient Boosting + Holt-Winters with a comprehensive Model Evaluation and diagnostics tab.
+  - `ReportPage.tsx`: Printable Automated Executive Report with EVA and VPMF charts.
+  - `SettingsPage.tsx`: Active AI provider switching (Google GenAI vs Groq).
+- **`/src/components/`**: Layout panels, custom table models, and the `ChatBot.tsx` floating assistant.
+- **`/src/lib/`**: Unified fetch client utilities.
